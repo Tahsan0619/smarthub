@@ -64,6 +64,9 @@ dev_dependencies:
   mocktail: ^1.0.0
   integration_test:
     sdk: flutter
+  
+  # Launcher Icons
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -72,6 +75,7 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/animations/
+    - assets/logo/
 
   # fonts:
   #   - family: Poppins
@@ -81,3 +85,10 @@ flutter:
   #         weight: 700
   #       - asset: assets/fonts/Poppins-SemiBold.ttf
   #         weight: 600
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/logo/icon.png"
+  adaptive_icon_background: "#26A69A"
+  adaptive_icon_foreground: "assets/logo/icon.png"

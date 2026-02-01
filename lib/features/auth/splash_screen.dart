@@ -69,10 +69,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.home_work,
-                    size: 80,
-                    color: Color(0xFF26A69A),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/logo/icon.png',
+                      width: 150,
+                      height: 150,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.home_work,
+                        size: 150,
+                        color: Color(0xFF26A69A),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),
