@@ -14,8 +14,7 @@ class SmartHubApp extends ConsumerWidget {
       title: 'Smart Hub',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       routerConfig: router,
     );
   }
