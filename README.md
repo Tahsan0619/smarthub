@@ -34,6 +34,13 @@ A comprehensive multi-role marketplace Flutter application designed for student 
 - Dynamic dashboard with service stats
 - Image picker integration for service photos
 
+#### 🛡️ Admin (Super Admin)
+- Full platform oversight (users, listings, services, bookings, orders)
+- Verify users with 13-digit NID and track verification history
+- Approve/unapprove accounts and remove abusive content
+- Real-time analytics dashboard with system health metrics
+- Live updates across all role dashboards
+
 ## 🚀 Technology Stack
 
 - **Framework**: Flutter 3.x
@@ -67,10 +74,11 @@ lib/
 │   └── widgets/         # Reusable widgets
 ├── features/
 │   ├── auth/           # Login, Signup, Splash screens
-│   ├── common/         # Shared screens (Settings, Help, etc.)
+│   ├── common/         # Shared screens (Onboarding, Settings, Help, etc.)
 │   ├── student/        # Student-specific features
 │   ├── owner/          # Owner-specific features
-│   └── provider/       # Provider-specific features
+│   ├── provider/       # Provider-specific features
+│   └── admin/          # Admin dashboard and management
 └── main.dart           # App entry point
 ```
 
@@ -81,6 +89,7 @@ lib/
 - Instant updates when bookings are approved/rejected
 - Live order status tracking
 - Real-time service catalog updates
+- Real-time rating and review counts
 
 ### Image Management
 - Upload images for properties and services
@@ -99,6 +108,7 @@ lib/
 - Role-specific color schemes (Student: Teal, Owner: Orange, Provider: Purple)
 - Smooth animations and transitions
 - Responsive layouts for various screen sizes
+- 3-step onboarding shown once every 30 days
 
 ## 🔧 Setup Instructions
 
@@ -131,6 +141,10 @@ lib/
 ### Provider Account
 - Email: provider@test.com
 - Password: 123456
+
+### Admin Account
+- Email: admin@sajibmart.com
+- Password: admin
 
 ## 📱 Screenshots
 
