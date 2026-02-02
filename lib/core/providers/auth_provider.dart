@@ -60,6 +60,7 @@ class CurrentUserNotifier extends StateNotifier<UserModel?> {
     required String role,
     String? university,
     String? address,
+    String? nid,
   }) async {
     try {
       // Check if email already exists
@@ -79,6 +80,8 @@ class CurrentUserNotifier extends StateNotifier<UserModel?> {
         role: role,
         university: university,
         address: address,
+        nid: nid,
+        isVerified: false, // New users need admin verification
         rating: 0.0,
         reviewCount: 0,
         createdAt: DateTime.now(),

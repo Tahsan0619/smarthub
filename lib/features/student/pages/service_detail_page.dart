@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/cart_provider.dart';
 import '../../../core/providers/data_providers.dart';
 import '../../../core/providers/auth_provider.dart';
+import 'tuition_detail_page.dart';
 
 class ServiceDetailPage extends ConsumerWidget {
   final ServiceModel service;
@@ -14,6 +15,11 @@ class ServiceDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Redirect to tuition detail page if this is a tuition service
+    if (service.category == ServiceCategory.tuition) {
+      return TuitionDetailPage(service: service);
+    }
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -270,6 +276,8 @@ class ServiceDetailPage extends ConsumerWidget {
         return Icons.medical_services;
       case ServiceCategory.furniture:
         return Icons.chair;
+      case ServiceCategory.tuition:
+        return Icons.school;
     }
   }
 
@@ -281,6 +289,8 @@ class ServiceDetailPage extends ConsumerWidget {
         return Colors.green;
       case ServiceCategory.furniture:
         return Colors.brown;
+      case ServiceCategory.tuition:
+        return Colors.purple;
     }
   }
 
@@ -292,6 +302,8 @@ class ServiceDetailPage extends ConsumerWidget {
         return 'Medicine';
       case ServiceCategory.furniture:
         return 'Furniture';
+      case ServiceCategory.tuition:
+        return 'Tuition';
     }
   }
 }
@@ -353,6 +365,8 @@ class _AdditionalInfoCards extends ConsumerWidget {
         return 'Medicine';
       case ServiceCategory.furniture:
         return 'Furniture';
+      case ServiceCategory.tuition:
+        return 'Tuition';
     }
   }
 
@@ -393,6 +407,7 @@ class _RatingHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reviews = ref.watch(reviewsProvider).where((r) => r.serviceId == service.id).toList();
+    final reviewCount = ref.watch(serviceReviewCountProvider(service.id));
     final averageRating = reviews.isEmpty ? 0.0 : reviews.fold<double>(0, (sum, r) => sum + r.rating) / reviews.length;
 
     return Row(
@@ -407,7 +422,7 @@ class _RatingHeader extends ConsumerWidget {
           ),
         ),
         Text(
-          ' (${reviews.length} reviews)',
+          ' ($reviewCount reviews)',
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey.shade600,
@@ -458,6 +473,7 @@ class _RatingSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reviews = ref.watch(reviewsProvider).where((r) => r.serviceId == service.id).toList();
+    final reviewCount = ref.watch(serviceReviewCountProvider(service.id));
     final currentUser = ref.watch(currentUserProvider);
     final userReview = reviews.cast<ReviewModel?>().firstWhere(
       (r) => r?.studentId == currentUser?.id,
@@ -505,7 +521,7 @@ class _RatingSection extends ConsumerWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '(${reviews.length} reviews)',
+                        '($reviewCount reviews)',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade600,

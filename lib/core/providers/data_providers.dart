@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/house_model.dart';
 import '../models/service_model.dart';
 import '../models/booking_model.dart';
@@ -16,6 +17,7 @@ class HousesNotifier extends StateNotifier<List<HouseModel>> {
 
   void addHouse(HouseModel house) {
     state = [...state, house];
+    MockDataService.demoHouses.add(house);
   }
 
   void updateHouse(HouseModel house) {
@@ -23,10 +25,15 @@ class HousesNotifier extends StateNotifier<List<HouseModel>> {
       for (final h in state)
         if (h.id == house.id) house else h,
     ];
+    final index = MockDataService.demoHouses.indexWhere((h) => h.id == house.id);
+    if (index != -1) {
+      MockDataService.demoHouses[index] = house;
+    }
   }
 
   void deleteHouse(String id) {
     state = state.where((h) => h.id != id).toList();
+    MockDataService.demoHouses.removeWhere((h) => h.id == id);
   }
 
   List<HouseModel> getOwnerHouses(String ownerId) {
@@ -53,6 +60,7 @@ class ServicesNotifier extends StateNotifier<List<ServiceModel>> {
 
   void addService(ServiceModel service) {
     state = [...state, service];
+    MockDataService.demoServices.add(service);
   }
 
   void updateService(ServiceModel service) {
@@ -60,10 +68,15 @@ class ServicesNotifier extends StateNotifier<List<ServiceModel>> {
       for (final s in state)
         if (s.id == service.id) service else s,
     ];
+    final index = MockDataService.demoServices.indexWhere((s) => s.id == service.id);
+    if (index != -1) {
+      MockDataService.demoServices[index] = service;
+    }
   }
 
   void deleteService(String id) {
     state = state.where((s) => s.id != id).toList();
+    MockDataService.demoServices.removeWhere((s) => s.id == id);
   }
 
   List<ServiceModel> getServicesByCategory(ServiceCategory category) {
@@ -85,6 +98,7 @@ class BookingsNotifier extends StateNotifier<List<BookingModel>> {
 
   void addBooking(BookingModel booking) {
     state = [...state, booking];
+    MockDataService.demoBookings.add(booking);
   }
 
   void updateBooking(BookingModel booking) {
@@ -92,6 +106,15 @@ class BookingsNotifier extends StateNotifier<List<BookingModel>> {
       for (final b in state)
         if (b.id == booking.id) booking else b,
     ];
+    final index = MockDataService.demoBookings.indexWhere((b) => b.id == booking.id);
+    if (index != -1) {
+      MockDataService.demoBookings[index] = booking;
+    }
+  }
+
+  void deleteBooking(String bookingId) {
+    state = state.where((b) => b.id != bookingId).toList();
+    MockDataService.demoBookings.removeWhere((b) => b.id == bookingId);
   }
 
   List<BookingModel> getStudentBookings(String studentId) {
@@ -142,6 +165,7 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
 
   void addOrder(OrderModel order) {
     state = [...state, order];
+    MockDataService.demoOrders.add(order);
   }
 
   void updateOrder(OrderModel order) {
@@ -149,6 +173,15 @@ class OrdersNotifier extends StateNotifier<List<OrderModel>> {
       for (final o in state)
         if (o.id == order.id) order else o,
     ];
+    final index = MockDataService.demoOrders.indexWhere((o) => o.id == order.id);
+    if (index != -1) {
+      MockDataService.demoOrders[index] = order;
+    }
+  }
+
+  void deleteOrder(String orderId) {
+    state = state.where((o) => o.id != orderId).toList();
+    MockDataService.demoOrders.removeWhere((o) => o.id == orderId);
   }
 
   List<OrderModel> getStudentOrders(String studentId) {
@@ -276,3 +309,41 @@ class ReviewsNotifier extends StateNotifier<List<ReviewModel>> {
     return reviewCount == 0 ? 0.0 : totalRating / reviewCount;
   }
 }
+
+// Provider to get student's review count dynamically
+final studentReviewCountProvider = Provider.family<int, String>((ref, studentId) {
+  final reviews = ref.watch(reviewsProvider);
+  return reviews.where((r) => r.studentId == studentId).length;
+});
+
+// Provider to get service review count dynamically
+final serviceReviewCountProvider = Provider.family<int, String>((ref, serviceId) {
+  final reviews = ref.watch(reviewsProvider);
+  return reviews.where((r) => r.serviceId == serviceId).length;
+});
+
+// Provider to get house review count dynamically
+final houseReviewCountProvider = Provider.family<int, String>((ref, houseId) {
+  final reviews = ref.watch(reviewsProvider);
+  return reviews.where((r) => r.houseId == houseId).length;
+});
+
+// Provider to check if onboarding should be shown
+final shouldShowOnboardingProvider = FutureProvider<bool>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final lastShownStr = prefs.getString('onboarding_last_shown');
+  
+  if (lastShownStr == null) {
+    return true; // First time, show onboarding
+  }
+  
+  try {
+    final lastShown = DateTime.parse(lastShownStr);
+    final now = DateTime.now();
+    final difference = now.difference(lastShown).inDays;
+    
+    return difference >= 30; // Show again if 30+ days have passed
+  } catch (e) {
+    return true; // If there's any error, show onboarding
+  }
+});

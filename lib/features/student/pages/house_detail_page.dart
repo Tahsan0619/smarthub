@@ -14,6 +14,7 @@ class HouseDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final savedHouses = ref.watch(savedHousesProvider);
+    final houseReviewCount = ref.watch(houseReviewCountProvider(house.id));
     final isSaved = savedHouses.contains(house.id);
     final imagePath = house.images.isNotEmpty ? house.images.first : '';
     final isLocalFile = imagePath.isNotEmpty && !imagePath.startsWith('http');
@@ -148,7 +149,7 @@ class HouseDetailPage extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            ' (${house.reviewCount} reviews)',
+                            ' ($houseReviewCount reviews)',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey.shade600,

@@ -23,7 +23,7 @@ class _StudentSearchPageState extends ConsumerState<StudentSearchPage> with Sing
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -188,6 +188,7 @@ class _StudentSearchPageState extends ConsumerState<StudentSearchPage> with Sing
             Tab(text: 'Food'),
             Tab(text: 'Medicine'),
             Tab(text: 'Furniture'),
+            Tab(text: 'Tuition'),
           ],
         ),
       ),
@@ -268,6 +269,11 @@ class _StudentSearchPageState extends ConsumerState<StudentSearchPage> with Sing
                     allServices.where((s) => s.category == ServiceCategory.furniture).toList(),
                   ),
                 ),
+                _ServiceGrid(
+                  services: _filterServices(
+                    allServices.where((s) => s.category == ServiceCategory.tuition).toList(),
+                  ),
+                ),
               ],
             ),
           ),
@@ -340,10 +346,9 @@ class _ServiceCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reviews = ref.watch(reviewsProvider).where((r) => r.serviceId == service.id).toList();
-    final averageRating = reviews.isEmpty
-        ? 0.0
-        : reviews.fold<double>(0, (sum, r) => sum + r.rating) / reviews.length;
+    // Use dynamic review count from provider
+    final reviewCount = ref.watch(serviceReviewCountProvider(service.id));
+    final averageRating = service.rating;
 
     return InkWell(
       onTap: () {
@@ -408,7 +413,7 @@ class _ServiceCard extends ConsumerWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '(${reviews.length})',
+                        '($reviewCount)',
                         style: const TextStyle(fontSize: 11, color: Colors.grey),
                       ),
                     ],

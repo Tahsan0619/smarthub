@@ -9,6 +9,7 @@ import '../../../core/models/house_model.dart';
 import '../../../core/models/booking_model.dart';
 import 'booking_flow_page.dart';
 import 'house_detail_page.dart';
+import 'all_accommodations_page.dart';
 import '../student_dashboard.dart';
 
 class StudentHomePage extends ConsumerStatefulWidget {
@@ -405,7 +406,14 @@ class _StudentHomePageState extends ConsumerState<StudentHomePage> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AllAccommodationsPage(),
+                          ),
+                        );
+                      },
                       child: const Text('View All'),
                     ),
                   ],
@@ -1207,7 +1215,7 @@ class _CompactHouseCard extends StatelessWidget {
   }
 }
 
-class _ServiceCard extends StatelessWidget {
+class _ServiceCard extends ConsumerWidget {
   final dynamic service;
 
   const _ServiceCard({required this.service});
@@ -1221,16 +1229,27 @@ class _ServiceCard extends StatelessWidget {
         return Icons.medical_services;
       case 'furniture':
         return Icons.chair;
+      case 'tuition':
+        return Icons.school;
       default:
         return Icons.shopping_bag;
     }
   }
 
+  bool get _isTuition => service.category.toString().split('.').last.toLowerCase() == 'tuition';
+  Color get _accentColor => _isTuition ? AppColors.primaryDark : AppColors.primary;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reviewCount = ref.watch(serviceReviewCountProvider(service.id));
+    
     return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: _isTuition ? 2 : 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: _isTuition ? BorderSide(color: AppColors.primaryLight, width: 1) : BorderSide.none,
+      ),
+      color: _isTuition ? AppColors.primaryLight.withOpacity(0.2) : Colors.white,
       child: InkWell(
         onTap: () {
           // Navigate to service detail page if needed
@@ -1239,49 +1258,73 @@ class _ServiceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: service.images.isNotEmpty
-                  ? (service.images.first.startsWith('http')
-                      ? Image.network(
-                          service.images.first,
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  child: service.images.isNotEmpty
+                      ? (service.images.first.startsWith('http')
+                          ? Image.network(
+                              service.images.first,
+                              height: 90,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                height: 90,
+                                color: _accentColor.withOpacity(0.1),
+                                child: Icon(
+                                  _getCategoryIcon(),
+                                  size: 30,
+                                  color: _accentColor,
+                                ),
+                              ),
+                            )
+                          : Image.file(
+                              File(service.images.first),
+                              height: 90,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                height: 90,
+                                color: _accentColor.withOpacity(0.1),
+                                child: Icon(
+                                  _getCategoryIcon(),
+                                  size: 30,
+                                  color: _accentColor,
+                                ),
+                              ),
+                            ))
+                      : Container(
                           height: 90,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            height: 90,
-                            color: AppColors.primary.withOpacity(0.1),
-                            child: Icon(
-                              _getCategoryIcon(),
-                              size: 30,
-                              color: AppColors.primary,
-                            ),
+                          color: _accentColor.withOpacity(0.1),
+                          child: Icon(
+                            _getCategoryIcon(),
+                            size: 30,
+                            color: _accentColor,
                           ),
-                        )
-                      : Image.file(
-                          File(service.images.first),
-                          height: 90,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            height: 90,
-                            color: AppColors.primary.withOpacity(0.1),
-                            child: Icon(
-                              _getCategoryIcon(),
-                              size: 30,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ))
-                  : Container(
-                      height: 90,
-                      color: AppColors.primary.withOpacity(0.1),
-                      child: Icon(
-                        _getCategoryIcon(),
-                        size: 30,
-                        color: AppColors.primary,
+                        ),
+                ),
+                if (_isTuition)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryDark,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Tuition',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
+                  ),
+              ],
             ),
             Expanded(
               child: Padding(
@@ -1292,10 +1335,11 @@ class _ServiceCard extends StatelessWidget {
                   children: [
                     Text(
                       service.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                         height: 1.2,
+                        color: _isTuition ? AppColors.primaryDark : Colors.black87,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1304,14 +1348,38 @@ class _ServiceCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          '৳${service.price.toInt()}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                            height: 1.0,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              '৳${service.price.toInt()}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                                height: 1.0,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.star, size: 10, color: Colors.amber),
+                            const SizedBox(width: 2),
+                            Text(
+                              '${service.rating.toStringAsFixed(1)}',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                height: 1.0,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              '($reviewCount)',
+                              style: const TextStyle(
+                                fontSize: 8,
+                                color: Colors.grey,
+                                height: 1.0,
+                              ),
+                            ),
+                          ],
                         ),
                         if (service.isAvailable)
                           Container(

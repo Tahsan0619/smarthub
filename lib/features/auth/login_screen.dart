@@ -178,8 +178,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 8),
                     _buildDemoAccountRow('Provider', 'karim@provider.com', AppColors.providerColor),
                     const SizedBox(height: 8),
+                    _buildDemoAccountRow('Admin', 'admin@sajibmart.com', Colors.red),
+                    const SizedBox(height: 8),
                     const Text(
-                      'Password: any',
+                      'Password: admin (for admin) | any (for others)',
                       style: TextStyle(
                         fontFamily: 'monospace',
                         fontStyle: FontStyle.italic,

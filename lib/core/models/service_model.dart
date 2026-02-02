@@ -1,4 +1,4 @@
-enum ServiceCategory { food, medicine, furniture }
+enum ServiceCategory { food, medicine, furniture, tuition }
 
 class ServiceModel {
   final String id;
@@ -15,6 +15,13 @@ class ServiceModel {
   final bool isAvailable;
   final DateTime createdAt;
   final String? deliveryTime;
+  
+  // Tuition-specific fields
+  final String? subject;
+  final String? qualifications;
+  final String? experienceLevel; // beginner, intermediate, advanced
+  final int? sessionDurationMinutes;
+  final List<String>? availability; // e.g., ['Monday', 'Wednesday', 'Friday']
 
   ServiceModel({
     required this.id,
@@ -31,6 +38,11 @@ class ServiceModel {
     this.isAvailable = true,
     required this.createdAt,
     this.deliveryTime,
+    this.subject,
+    this.qualifications,
+    this.experienceLevel,
+    this.sessionDurationMinutes,
+    this.availability,
   });
 
   factory ServiceModel.fromJson(Map<String, dynamic> json) {
@@ -52,6 +64,11 @@ class ServiceModel {
       isAvailable: json['isAvailable'] as bool? ?? true,
       createdAt: DateTime.parse(json['createdAt'] as String),
       deliveryTime: json['deliveryTime'] as String?,
+      subject: json['subject'] as String?,
+      qualifications: json['qualifications'] as String?,
+      experienceLevel: json['experienceLevel'] as String?,
+      sessionDurationMinutes: json['sessionDurationMinutes'] as int?,
+      availability: (json['availability'] as List<dynamic>?)?.cast<String>(),
     );
   }
 
@@ -71,6 +88,11 @@ class ServiceModel {
       'isAvailable': isAvailable,
       'createdAt': createdAt.toIso8601String(),
       'deliveryTime': deliveryTime,
+      'subject': subject,
+      'qualifications': qualifications,
+      'experienceLevel': experienceLevel,
+      'sessionDurationMinutes': sessionDurationMinutes,
+      'availability': availability,
     };
   }
 
@@ -89,6 +111,11 @@ class ServiceModel {
     bool? isAvailable,
     DateTime? createdAt,
     String? deliveryTime,
+    String? subject,
+    String? qualifications,
+    String? experienceLevel,
+    int? sessionDurationMinutes,
+    List<String>? availability,
   }) {
     return ServiceModel(
       id: id ?? this.id,
@@ -105,6 +132,11 @@ class ServiceModel {
       isAvailable: isAvailable ?? this.isAvailable,
       createdAt: createdAt ?? this.createdAt,
       deliveryTime: deliveryTime ?? this.deliveryTime,
+      subject: subject ?? this.subject,
+      qualifications: qualifications ?? this.qualifications,
+      experienceLevel: experienceLevel ?? this.experienceLevel,
+      sessionDurationMinutes: sessionDurationMinutes ?? this.sessionDurationMinutes,
+      availability: availability ?? this.availability,
     );
   }
 }

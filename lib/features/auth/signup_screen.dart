@@ -20,6 +20,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _confirmPasswordController = TextEditingController();
   final _universityController = TextEditingController();
   final _addressController = TextEditingController();
+  final _nidController = TextEditingController();
   
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -36,6 +37,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     _confirmPasswordController.dispose();
     _universityController.dispose();
     _addressController.dispose();
+    _nidController.dispose();
     super.dispose();
   }
 
@@ -96,6 +98,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         role: _selectedRole,
         university: _selectedRole == 'student' ? _universityController.text.trim() : null,
         address: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
+        nid: _nidController.text.trim().isNotEmpty ? _nidController.text.trim() : null,
       );
 
       if (success && mounted) {
@@ -301,6 +304,34 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       }
                       if (value.trim().length < 10) {
                         return 'Please enter a valid phone number';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  TextFormField(
+                    controller: _nidController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 13,
+                    decoration: InputDecoration(
+                      labelText: 'National ID (NID)',
+                      prefixIcon: const Icon(Icons.badge_outlined),
+                      hintText: '13 digit NID number',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      helperText: 'Required for verification',
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter your NID';
+                      }
+                      if (value.trim().length != 13) {
+                        return 'NID must be exactly 13 digits';
+                      }
+                      if (!RegExp(r'^[0-9]+$').hasMatch(value.trim())) {
+                        return 'NID must contain only numbers';
                       }
                       return null;
                     },

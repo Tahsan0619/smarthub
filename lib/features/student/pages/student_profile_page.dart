@@ -386,7 +386,7 @@ class StudentProfilePage extends ConsumerWidget {
                       Container(width: 1, height: 40, color: Colors.grey.shade300),
                       _StatItem(
                         icon: Icons.reviews,
-                        value: '${user.reviewCount}',
+                        value: '${ref.watch(studentReviewCountProvider(user.id))}',
                         label: 'Reviews',
                       ),
                     ],

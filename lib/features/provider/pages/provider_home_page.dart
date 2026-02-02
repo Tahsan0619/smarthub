@@ -137,6 +137,22 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
+                  onPressed: () => _showAddTuitionDialog(context, ref),
+                  icon: const Icon(Icons.school),
+                  label: const Text('Add Tuition'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple.shade600,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
                   onPressed: () => _showAnalytics(context),
                   icon: const Icon(Icons.analytics),
                   label: const Text('Analytics'),
@@ -416,6 +432,332 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
     );
   }
 
+  void _showAddTuitionDialog(BuildContext context, WidgetRef ref) {
+    final nameController = TextEditingController();
+    final priceController = TextEditingController();
+    final descController = TextEditingController();
+    final subjectController = TextEditingController();
+    final qualificationsController = TextEditingController();
+    final durationController = TextEditingController(text: '60');
+    String selectedExperience = 'intermediate';
+    List<String> selectedDays = [];
+    XFile? selectedImage;
+    final ImagePicker picker = ImagePicker();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.school, color: Colors.purple.shade600),
+              const SizedBox(width: 8),
+              const Flexible(
+                child: Text(
+                  'Add New Tuition Service',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image section
+                if (selectedImage != null)
+                  Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          File(selectedImage!.path),
+                          width: double.infinity,
+                          height: 180,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          onPressed: () => setState(() => selectedImage = null),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          iconSize: 20,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  GestureDetector(
+                    onTap: () => _showImageOptions(context, setState, picker, (img) {
+                      selectedImage = img;
+                    }),
+                    child: Container(
+                      height: 140,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Colors.purple.shade300,
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.purple.shade50,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.school,
+                            size: 36,
+                            color: Colors.purple.shade400,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Add Tuition Cover',
+                            style: TextStyle(
+                              color: Colors.purple.shade600,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Camera or Gallery',
+                            style: TextStyle(
+                              color: Colors.purple.shade400,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                
+                // Tuition specific fields
+                Text(
+                  'Course Information',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple.shade600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    labelText: 'Course Name',
+                    prefixIcon: const Icon(Icons.book),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                TextField(
+                  controller: subjectController,
+                  decoration: InputDecoration(
+                    labelText: 'Subject/Topic',
+                    prefixIcon: const Icon(Icons.subject),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: priceController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Price per Session (৳)',
+                          prefixIcon: const Icon(Icons.attach_money),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: durationController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Duration (minutes)',
+                          prefixIcon: const Icon(Icons.timer),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                TextField(
+                  controller: descController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Course Description',
+                    prefixIcon: const Icon(Icons.description),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                Text(
+                  'Tutor Information',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple.shade600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                TextField(
+                  controller: qualificationsController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Your Qualifications',
+                    prefixIcon: const Icon(Icons.school),
+                    hintText: 'e.g., B.Sc Mathematics, Teaching Certified',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                DropdownButtonFormField<String>(
+                  value: selectedExperience,
+                  decoration: InputDecoration(
+                    labelText: 'Experience Level',
+                    prefixIcon: const Icon(Icons.trending_up),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'beginner', child: Text('Beginner')),
+                    DropdownMenuItem(value: 'intermediate', child: Text('Intermediate')),
+                    DropdownMenuItem(value: 'advanced', child: Text('Advanced')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => selectedExperience = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                
+                Text(
+                  'Available Days',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple.shade600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                      .map((day) {
+                    final isSelected = selectedDays.contains(day);
+                    return FilterChip(
+                      label: Text(day),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            selectedDays.add(day);
+                          } else {
+                            selectedDays.remove(day);
+                          }
+                        });
+                      },
+                      backgroundColor: Colors.purple.shade50,
+                      selectedColor: Colors.purple.shade200,
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (nameController.text.isNotEmpty &&
+                    priceController.text.isNotEmpty &&
+                    subjectController.text.isNotEmpty &&
+                    descController.text.isNotEmpty) {
+                  final user = ref.read(currentUserProvider);
+                  final newService = ServiceModel(
+                    id: 't${DateTime.now().millisecondsSinceEpoch}',
+                    providerId: user!.id,
+                    providerName: user.name,
+                    providerPhone: user.phone,
+                    name: nameController.text,
+                    description: descController.text,
+                    price: double.parse(priceController.text),
+                    category: ServiceCategory.tuition,
+                    createdAt: DateTime.now(),
+                    deliveryTime: 'Flexible scheduling',
+                    rating: 0.0,
+                    reviewCount: 0,
+                    isAvailable: true,
+                    images: selectedImage != null ? [selectedImage!.path] : [],
+                    subject: subjectController.text,
+                    qualifications: qualificationsController.text,
+                    experienceLevel: selectedExperience,
+                    sessionDurationMinutes: int.tryParse(durationController.text) ?? 60,
+                    availability: selectedDays,
+                  );
+                  ref.read(servicesProvider.notifier).addService(newService);
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Tuition service added successfully!'),
+                      backgroundColor: Colors.purple.shade600,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please fill all required fields')),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple.shade600,
+              ),
+              child: const Text('Add Tuition'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAnalytics(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final allServices = ref.watch(servicesProvider);
@@ -437,7 +779,8 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
     });
     
     double avgRating = myServices.isEmpty ? 0 : myServices.fold(0.0, (sum, s) => sum + s.rating) / myServices.length;
-    int totalReviews = myServices.fold(0, (sum, s) => sum + s.reviewCount);
+    final allReviews = ref.watch(reviewsProvider);
+    int totalReviews = allReviews.where((r) => myServices.any((s) => s.id == r.serviceId)).length;
     
     // Category breakdown
     Map<String, int> categoryCount = {};
@@ -583,9 +926,20 @@ class _ServiceCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isTuition = service.category == ServiceCategory.tuition;
+    final cardColor = isTuition ? AppColors.primaryLight.withOpacity(0.2) : Colors.white;
+    final borderColor = isTuition ? AppColors.primaryLight : Colors.grey.shade200;
+    final iconColor = isTuition ? AppColors.primaryDark : AppColors.providerColor;
+    final accentColor = isTuition ? AppColors.primaryDark : AppColors.providerColor;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
+      elevation: isTuition ? 2 : 1,
+      color: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: borderColor, width: 1),
+      ),
       child: InkWell(
         onTap: () => _showServiceDetails(context, ref),
         child: Padding(
@@ -608,12 +962,12 @@ class _ServiceCard extends ConsumerWidget {
                                   width: 60,
                                   height: 60,
                                   decoration: BoxDecoration(
-                                    color: AppColors.providerColor.withOpacity(0.1),
+                                    color: iconColor.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(
                                     _getCategoryIcon(service.category),
-                                    color: AppColors.providerColor,
+                                    color: iconColor,
                                     size: 32,
                                   ),
                                 ),
@@ -627,12 +981,12 @@ class _ServiceCard extends ConsumerWidget {
                                   width: 60,
                                   height: 60,
                                   decoration: BoxDecoration(
-                                    color: AppColors.providerColor.withOpacity(0.1),
+                                    color: iconColor.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(
                                     _getCategoryIcon(service.category),
-                                    color: AppColors.providerColor,
+                                    color: iconColor,
                                     size: 32,
                                   ),
                                 ),
@@ -641,12 +995,12 @@ class _ServiceCard extends ConsumerWidget {
                             width: 60,
                             height: 60,
                             decoration: BoxDecoration(
-                              color: AppColors.providerColor.withOpacity(0.1),
+                              color: iconColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
                               _getCategoryIcon(service.category),
-                              color: AppColors.providerColor,
+                              color: iconColor,
                               size: 32,
                             ),
                           ),
@@ -656,97 +1010,95 @@ class _ServiceCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                service.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: isTuition ? AppColors.primaryDark : Colors.black87,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isTuition)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.purple.shade600,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'Tuition',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
                         Text(
-                          service.name,
-                          style: const TextStyle(
+                          '৳${service.price.toInt()}',
+                          style: TextStyle(
+                            color: accentColor,
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '৳${service.price.toInt()} • ${service.category.toString().split('.').last}',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 13,
+                        if (isTuition && service.subject != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            service.subject!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                              fontStyle: FontStyle.italic,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (service.deliveryTime != null)
-                          Row(
-                            children: [
-                              const Icon(Icons.schedule, size: 12, color: Colors.grey),
-                              const SizedBox(width: 4),
-                              Text(
-                                service.deliveryTime!,
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
+                        ],
                       ],
                     ),
                   ),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Chip(
-                        label: Text(
-                          service.isAvailable ? 'Available' : 'Unavailable',
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                        backgroundColor: service.isAvailable 
-                            ? Colors.green.withOpacity(0.1) 
-                            : Colors.red.withOpacity(0.1),
-                        labelStyle: TextStyle(
-                          color: service.isAvailable ? Colors.green : Colors.red,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (service.rating > 0) ...[
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.star, size: 12, color: Colors.amber),
-                              const SizedBox(width: 2),
-                              Text(
-                                '${service.rating.toStringAsFixed(1)} (${service.reviewCount})',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.amber,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
                 ],
               ),
-              if (service.description.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(
-                  service.description,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
+              if (isTuition && service.experienceLevel != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star_half, size: 14, color: AppColors.primaryDark),
+                      const SizedBox(width: 4),
+                      Text(
+                        service.experienceLevel!
+                            .replaceFirst(
+                              service.experienceLevel![0],
+                              service.experienceLevel![0].toUpperCase(),
+                            ),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primaryDark,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],
@@ -754,17 +1106,6 @@ class _ServiceCard extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  IconData _getCategoryIcon(ServiceCategory category) {
-    switch (category) {
-      case ServiceCategory.food:
-        return Icons.fastfood;
-      case ServiceCategory.medicine:
-        return Icons.medical_services;
-      case ServiceCategory.furniture:
-        return Icons.chair;
-    }
   }
 
   void _showServiceDetails(BuildContext context, WidgetRef ref) {
@@ -781,167 +1122,128 @@ class _ServiceCard extends ConsumerWidget {
         expand: false,
         builder: (context, scrollController) => SingleChildScrollView(
           controller: scrollController,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                if (service.images.isNotEmpty && service.images.first.startsWith('http'))
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      service.images.first,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                Text(
+                  service.name,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  service.description,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Text(
+                      '৳${service.price.toInt()}',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    ),
+                    if (service.rating > 0)
+                      _ServiceRatingRow(service: service),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                if (service.category == ServiceCategory.tuition && service.subject != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            service.name,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close),
-                        ),
+                        Text('Subject: ${service.subject}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        if (service.qualifications != null)
+                          Text('Qualifications: ${service.qualifications}', style: const TextStyle(fontSize: 12)),
+                        if (service.sessionDurationMinutes != null)
+                          Text('Duration: ${service.sessionDurationMinutes} mins', style: const TextStyle(fontSize: 12)),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.providerColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _getCategoryIcon(service.category),
-                            size: 24,
-                            color: AppColors.providerColor,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '৳${service.price.toInt()}',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.providerColor,
-                                  ),
-                                ),
-                                Text(
-                                  service.category.toString().split('.').last,
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Chip(
-                                label: Text(service.isAvailable ? 'Available' : 'Unavailable'),
-                                backgroundColor: service.isAvailable
-                                    ? Colors.green.withOpacity(0.1)
-                                    : Colors.red.withOpacity(0.1),
-                                labelStyle: TextStyle(
-                                  color: service.isAvailable ? Colors.green : Colors.red,
-                                ),
-                              ),
-                              if (service.rating > 0)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.star, size: 16, color: Colors.amber),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '${service.rating.toStringAsFixed(1)} (${service.reviewCount})',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.amber,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                // Edit and Delete buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showEditServiceDialog(context, ref);
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Edit Service'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.providerColor,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Description',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(service.description),
-                    if (service.deliveryTime != null) ...[
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Delivery Time',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.schedule, size: 20, color: AppColors.providerColor),
-                          const SizedBox(width: 8),
-                          Text(service.deliveryTime!),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _showEditServiceDialog(context, ref);
-                            },
-                            icon: const Icon(Icons.edit),
-                            label: const Text('Edit Service'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.providerColor,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showDeleteConfirmation(context, ref);
+                        },
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: const BorderSide(color: Colors.red),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _showDeleteConfirmation(context, ref);
-                            },
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            label: const Text('Delete', style: TextStyle(color: Colors.red)),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              side: const BorderSide(color: Colors.red),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  IconData _getCategoryIcon(ServiceCategory category) {
+    switch (category) {
+      case ServiceCategory.food:
+        return Icons.fastfood;
+      case ServiceCategory.medicine:
+        return Icons.medical_services;
+      case ServiceCategory.furniture:
+        return Icons.chair;
+      case ServiceCategory.tuition:
+        return Icons.school;
+    }
   }
 
   void _showEditServiceDialog(BuildContext context, WidgetRef ref) {
@@ -958,13 +1260,15 @@ class _ServiceCard extends ConsumerWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Edit Service'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Image section
-                if (selectedImagePath != null)
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.8,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image section
+                  if (selectedImagePath != null)
                   Stack(
                     children: [
                       ClipRRect(
@@ -1088,6 +1392,7 @@ class _ServiceCard extends ConsumerWidget {
               ],
             ),
           ),
+        ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -1200,6 +1505,26 @@ class _AnalyticsItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+class _ServiceRatingRow extends ConsumerWidget {
+  final ServiceModel service;
+
+  const _ServiceRatingRow({required this.service});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reviewCount = ref.watch(serviceReviewCountProvider(service.id));
+    
+    return Row(
+      children: [
+        const Icon(Icons.star, size: 16, color: Colors.amber),
+        Text(
+          '${service.rating.toStringAsFixed(1)} ($reviewCount)',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 }

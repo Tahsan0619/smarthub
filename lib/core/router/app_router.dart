@@ -9,6 +9,7 @@ import '../../features/auth/signup_screen.dart';
 import '../../features/student/student_dashboard.dart';
 import '../../features/owner/owner_dashboard.dart';
 import '../../features/provider/provider_dashboard.dart';
+import '../../features/admin/admin_dashboard.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final isAuthenticated = ref.watch(isAuthenticatedProvider);
@@ -56,6 +57,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             return const OwnerDashboard();
           } else if (userRole == 'provider') {
             return const ProviderDashboard();
+          } else if (userRole == 'admin') {
+            return const AdminDashboard();
           }
           return const SplashScreen();
         },
