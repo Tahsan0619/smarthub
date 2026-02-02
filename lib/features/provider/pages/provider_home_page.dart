@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/services/supabase_service.dart';
 import '../../../core/providers/data_providers.dart';
 import '../../../core/providers/cart_provider.dart';
 import '../../../core/theme/app_colors.dart';
@@ -337,33 +338,62 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (nameController.text.isNotEmpty && priceController.text.isNotEmpty && descController.text.isNotEmpty) {
-                  final user = ref.read(currentUserProvider);
-                  final newService = ServiceModel(
-                    id: 's${DateTime.now().millisecondsSinceEpoch}',
-                    providerId: user!.id,
-                    providerName: user.name,
-                    providerPhone: user.phone,
-                    name: nameController.text,
-                    description: descController.text,
-                    price: double.parse(priceController.text),
-                    category: selectedCategory,
-                    createdAt: DateTime.now(),
-                    deliveryTime: deliveryController.text.isNotEmpty ? deliveryController.text : '30-45 mins',
-                    rating: 0.0,
-                    reviewCount: 0,
-                    isAvailable: true,
-                    images: selectedImage != null ? [selectedImage!.path] : [],
-                  );
-                  ref.read(servicesProvider.notifier).addService(newService, user.id);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Service added successfully!'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
+                  try {
+                    // Show loading
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Creating service...'), duration: Duration(seconds: 30)),
+                    );
+
+                    // Upload image if selected
+                    List<String> imageUrls = [];
+                    if (selectedImage != null) {
+                      final uploadedUrl = await SupabaseService.uploadServiceImage(
+                        filePath: selectedImage!.path,
+                        fileName: selectedImage!.name,
+                      );
+                      if (uploadedUrl != null) {
+                        imageUrls.add(uploadedUrl);
+                      }
+                    }
+
+                    final user = ref.read(currentUserProvider);
+                    final newService = ServiceModel(
+                      id: 's${DateTime.now().millisecondsSinceEpoch}',
+                      providerId: user!.id,
+                      providerName: user.name,
+                      providerPhone: user.phone,
+                      name: nameController.text,
+                      description: descController.text,
+                      price: double.parse(priceController.text),
+                      category: selectedCategory,
+                      createdAt: DateTime.now(),
+                      deliveryTime: deliveryController.text.isNotEmpty ? deliveryController.text : '30-45 mins',
+                      rating: 0.0,
+                      reviewCount: 0,
+                      isAvailable: true,
+                      images: imageUrls,
+                    );
+                    await ref.read(servicesProvider.notifier).addService(newService, user.id);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Service added successfully!'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
+                  }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Please fill all fields')),
@@ -702,41 +732,70 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (nameController.text.isNotEmpty &&
                     priceController.text.isNotEmpty &&
                     subjectController.text.isNotEmpty &&
                     descController.text.isNotEmpty) {
-                  final user = ref.read(currentUserProvider);
-                  final newService = ServiceModel(
-                    id: 't${DateTime.now().millisecondsSinceEpoch}',
-                    providerId: user!.id,
-                    providerName: user.name,
-                    providerPhone: user.phone,
-                    name: nameController.text,
-                    description: descController.text,
-                    price: double.parse(priceController.text),
-                    category: ServiceCategory.tuition,
-                    createdAt: DateTime.now(),
-                    deliveryTime: 'Flexible scheduling',
-                    rating: 0.0,
-                    reviewCount: 0,
-                    isAvailable: true,
-                    images: selectedImage != null ? [selectedImage!.path] : [],
-                    subject: subjectController.text,
-                    qualifications: qualificationsController.text,
-                    experienceLevel: selectedExperience,
-                    sessionDurationMinutes: int.tryParse(durationController.text) ?? 60,
-                    availability: selectedDays,
-                  );
-                  ref.read(servicesProvider.notifier).addService(newService, user.id);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Tuition service added successfully!'),
-                      backgroundColor: Colors.purple.shade600,
-                    ),
-                  );
+                  try {
+                    // Show loading
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Creating tuition service...'), duration: Duration(seconds: 30)),
+                    );
+
+                    // Upload image if selected
+                    List<String> imageUrls = [];
+                    if (selectedImage != null) {
+                      final uploadedUrl = await SupabaseService.uploadServiceImage(
+                        filePath: selectedImage!.path,
+                        fileName: selectedImage!.name,
+                      );
+                      if (uploadedUrl != null) {
+                        imageUrls.add(uploadedUrl);
+                      }
+                    }
+
+                    final user = ref.read(currentUserProvider);
+                    final newService = ServiceModel(
+                      id: 't${DateTime.now().millisecondsSinceEpoch}',
+                      providerId: user!.id,
+                      providerName: user.name,
+                      providerPhone: user.phone,
+                      name: nameController.text,
+                      description: descController.text,
+                      price: double.parse(priceController.text),
+                      category: ServiceCategory.tuition,
+                      createdAt: DateTime.now(),
+                      deliveryTime: 'Flexible scheduling',
+                      rating: 0.0,
+                      reviewCount: 0,
+                      isAvailable: true,
+                      images: imageUrls,
+                      subject: subjectController.text,
+                      qualifications: qualificationsController.text,
+                      experienceLevel: selectedExperience,
+                      sessionDurationMinutes: int.tryParse(durationController.text) ?? 60,
+                      availability: selectedDays,
+                    );
+                    await ref.read(servicesProvider.notifier).addService(newService, user.id);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Tuition service added successfully!'),
+                          backgroundColor: Colors.purple.shade600,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
+                  }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Please fill all required fields')),
@@ -1397,35 +1456,60 @@ class _ServiceCard extends ConsumerWidget {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (nameController.text.isNotEmpty && priceController.text.isNotEmpty) {
-                  List<String> updatedImages = service.images;
-                  
-                  if (selectedImagePath != null && selectedImagePath!.isNotEmpty) {
-                    if (!selectedImagePath!.startsWith('http')) {
-                      updatedImages = [selectedImagePath!];
+                  try {
+                    // Show loading
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Updating service...'), duration: Duration(seconds: 30)),
+                    );
+
+                    List<String> updatedImages = service.images;
+                    
+                    if (selectedImagePath != null && selectedImagePath!.isNotEmpty) {
+                      if (!selectedImagePath!.startsWith('http')) {
+                        // Upload new image
+                        final fileName = selectedImagePath!.split('/').last;
+                        final uploadedUrl = await SupabaseService.uploadServiceImage(
+                          filePath: selectedImagePath!,
+                          fileName: fileName,
+                        );
+                        if (uploadedUrl != null) {
+                          updatedImages = [uploadedUrl];
+                        }
+                      }
+                    } else if (selectedImagePath == '') {
+                      updatedImages = [];
                     }
-                  } else if (selectedImagePath == '') {
-                    updatedImages = [];
+                    
+                    final updatedService = service.copyWith(
+                      name: nameController.text,
+                      price: double.parse(priceController.text),
+                      description: descController.text,
+                      deliveryTime: deliveryController.text,
+                      category: selectedCategory,
+                      images: updatedImages,
+                    ) ?? service;
+                    
+                    await ref.read(servicesProvider.notifier).updateService(updatedService);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Service updated successfully!'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
                   }
-                  
-                  final updatedService = service.copyWith(
-                    name: nameController.text,
-                    price: double.parse(priceController.text),
-                    description: descController.text,
-                    deliveryTime: deliveryController.text,
-                    category: selectedCategory,
-                    images: updatedImages,
-                  ) ?? service;
-                  
-                  ref.read(servicesProvider.notifier).updateService(updatedService);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Service updated successfully!'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.providerColor),

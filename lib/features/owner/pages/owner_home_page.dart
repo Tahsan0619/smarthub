@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/services/supabase_service.dart';
 import '../../../core/providers/data_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/house_model.dart';
@@ -475,43 +476,75 @@ class _OwnerHomePageState extends ConsumerState<OwnerHomePage> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (titleController.text.isNotEmpty && rentController.text.isNotEmpty) {
-                  final user = ref.read(currentUserProvider);
-                  final newHouse = HouseModel(
-                    id: 'h${DateTime.now().millisecondsSinceEpoch}',
-                    ownerId: user!.id,
-                    ownerName: user.name,
-                    ownerPhone: user.phone,
-                    title: titleController.text,
-                    description: descController.text.isNotEmpty ? descController.text : 'Comfortable property',
-                    rent: double.parse(rentController.text),
-                    location: locationController.text,
-                    area: areaController.text.isNotEmpty ? areaController.text : locationController.text,
-                    latitude: 23.8103,
-                    longitude: 90.3563,
-                    bedrooms: int.tryParse(bedroomsController.text) ?? 2,
-                    bathrooms: int.tryParse(bathroomsController.text) ?? 1,
-                    images: selectedImagePath != null 
-                        ? [selectedImagePath!] 
-                        : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
-                    facilities: selectedFacilities.isNotEmpty 
-                        ? selectedFacilities.toList() 
-                        : ['WiFi'],
-                    createdAt: DateTime.now(),
-                    distanceFromCampus: double.tryParse(distanceController.text) ?? 1.0,
-                    roomType: selectedRoomType,
-                    rating: 0.0,
-                    reviewCount: 0,
-                  );
-                  ref.read(housesProvider.notifier).addHouse(newHouse, user.id);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Property added successfully!'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
+                  try {
+                    // Show loading
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Creating property...'), duration: Duration(seconds: 30)),
+                    );
+
+                    // Upload image if selected
+                    List<String> imageUrls = [];
+                    if (selectedImagePath != null) {
+                      final fileName = selectedImagePath!.split('/').last;
+                      final uploadedUrl = await SupabaseService.uploadPropertyImage(
+                        filePath: selectedImagePath!,
+                        fileName: fileName,
+                      );
+                      if (uploadedUrl != null) {
+                        imageUrls.add(uploadedUrl);
+                      }
+                    }
+                    // Use default image if no upload or upload failed
+                    if (imageUrls.isEmpty) {
+                      imageUrls = ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'];
+                    }
+
+                    final user = ref.read(currentUserProvider);
+                    final newHouse = HouseModel(
+                      id: 'h${DateTime.now().millisecondsSinceEpoch}',
+                      ownerId: user!.id,
+                      ownerName: user.name,
+                      ownerPhone: user.phone,
+                      title: titleController.text,
+                      description: descController.text.isNotEmpty ? descController.text : 'Comfortable property',
+                      rent: double.parse(rentController.text),
+                      location: locationController.text,
+                      area: areaController.text.isNotEmpty ? areaController.text : locationController.text,
+                      latitude: 23.8103,
+                      longitude: 90.3563,
+                      bedrooms: int.tryParse(bedroomsController.text) ?? 2,
+                      bathrooms: int.tryParse(bathroomsController.text) ?? 1,
+                      images: imageUrls,
+                      facilities: selectedFacilities.isNotEmpty 
+                          ? selectedFacilities.toList() 
+                          : ['WiFi'],
+                      createdAt: DateTime.now(),
+                      distanceFromCampus: double.tryParse(distanceController.text) ?? 1.0,
+                      roomType: selectedRoomType,
+                      rating: 0.0,
+                      reviewCount: 0,
+                    );
+                    await ref.read(housesProvider.notifier).addHouse(newHouse, user.id);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Property added successfully!'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
+                  }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Please fill all required fields')),
@@ -1387,37 +1420,60 @@ class _PropertyCard extends ConsumerWidget {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (titleController.text.isNotEmpty && rentController.text.isNotEmpty) {
-                  // For now, store local path. When backend is added, upload to server first
-                  List<String> newImages = house.images;
-                  if (selectedImagePath != null) {
-                    // Store local file path - replace with upload URL when backend is ready
-                    newImages = [selectedImagePath!];
+                  try {
+                    // Show loading
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Updating property...'), duration: Duration(seconds: 30)),
+                    );
+
+                    // Upload new image if selected
+                    List<String> newImages = house.images;
+                    if (selectedImagePath != null) {
+                      final fileName = selectedImagePath!.split('/').last;
+                      final uploadedUrl = await SupabaseService.uploadPropertyImage(
+                        filePath: selectedImagePath!,
+                        fileName: fileName,
+                      );
+                      if (uploadedUrl != null) {
+                        newImages = [uploadedUrl];
+                      }
+                    }
+                    
+                    final updatedHouse = house.copyWith(
+                      title: titleController.text,
+                      rent: double.parse(rentController.text),
+                      location: locationController.text,
+                      area: areaController.text,
+                      bedrooms: int.tryParse(bedroomsController.text) ?? house.bedrooms,
+                      bathrooms: int.tryParse(bathroomsController.text) ?? house.bathrooms,
+                      description: descController.text,
+                      status: selectedStatus,
+                      images: newImages,
+                      facilities: selectedFacilities.toList(),
+                      roomType: selectedRoomType,
+                      distanceFromCampus: double.tryParse(distanceController.text) ?? house.distanceFromCampus,
+                    );
+                    await ref.read(housesProvider.notifier).updateHouse(updatedHouse);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Property updated successfully!'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
                   }
-                  
-                  final updatedHouse = house.copyWith(
-                    title: titleController.text,
-                    rent: double.parse(rentController.text),
-                    location: locationController.text,
-                    area: areaController.text,
-                    bedrooms: int.tryParse(bedroomsController.text) ?? house.bedrooms,
-                    bathrooms: int.tryParse(bathroomsController.text) ?? house.bathrooms,
-                    description: descController.text,
-                    status: selectedStatus,
-                    images: newImages,
-                    facilities: selectedFacilities.toList(),
-                    roomType: selectedRoomType,
-                    distanceFromCampus: double.tryParse(distanceController.text) ?? house.distanceFromCampus,
-                  );
-                  ref.read(housesProvider.notifier).updateHouse(updatedHouse);
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Property updated successfully!'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.ownerColor),

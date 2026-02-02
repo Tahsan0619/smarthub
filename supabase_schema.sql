@@ -262,6 +262,15 @@ CREATE POLICY "Booking parties can delete" ON bookings FOR DELETE USING (
       AND EXISTS (SELECT 1 FROM users WHERE id = owner_id AND auth_id = auth.uid())
   )
 );
+CREATE POLICY "Admins can read all bookings" ON bookings FOR SELECT USING (
+  EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role = 'admin')
+);
+CREATE POLICY "Admins can update all bookings" ON bookings FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role = 'admin')
+);
+CREATE POLICY "Admins can delete all bookings" ON bookings FOR DELETE USING (
+  EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role = 'admin')
+);
 
 -- ================================================================
 -- RLS POLICIES - ORDERS
@@ -277,6 +286,15 @@ CREATE POLICY "Order parties can update" ON orders FOR UPDATE USING (
 );
 CREATE POLICY "Order parties can delete" ON orders FOR DELETE USING (
   EXISTS (SELECT 1 FROM users WHERE id IN (student_id, provider_id) AND auth_id = auth.uid())
+);
+CREATE POLICY "Admins can read all orders" ON orders FOR SELECT USING (
+  EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role = 'admin')
+);
+CREATE POLICY "Admins can update all orders" ON orders FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role = 'admin')
+);
+CREATE POLICY "Admins can delete all orders" ON orders FOR DELETE USING (
+  EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role = 'admin')
 );
 
 -- ================================================================
@@ -302,6 +320,9 @@ CREATE POLICY "Users can delete order items" ON order_items FOR DELETE USING (
     JOIN users u ON u.id IN (o.student_id, o.provider_id) 
     WHERE o.id = order_id AND u.auth_id = auth.uid()
   )
+);
+CREATE POLICY "Admins can read all order items" ON order_items FOR SELECT USING (
+  EXISTS (SELECT 1 FROM users WHERE auth_id = auth.uid() AND role = 'admin')
 );
 
 -- ================================================================

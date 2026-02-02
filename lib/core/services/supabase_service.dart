@@ -786,19 +786,34 @@ class SupabaseService {
     required String fileName,
   }) async {
     try {
-      _log('uploadPropertyImage -> start (file: $fileName)');
+      _log('uploadPropertyImage -> start (file: $fileName, path: $filePath)');
       final file = File(filePath);
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final path = 'property_${timestamp}_$fileName';
       
-      await client.storage.from('properties-images').upload(path, file);
+      // Check if file exists
+      if (!await file.exists()) {
+        _log('uploadPropertyImage -> error: file does not exist');
+        return null;
+      }
+      
+      final bytes = await file.readAsBytes();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final ext = fileName.split('.').last.toLowerCase();
+      final path = 'property_${timestamp}.$ext';
+      
+      _log('uploadPropertyImage -> uploading ${bytes.length} bytes');
+      
+      await client.storage.from('properties-images').uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(contentType: 'image/$ext'),
+      );
       final url = client.storage.from('properties-images').getPublicUrl(path);
       
-      _log('uploadPropertyImage -> success');
+      _log('uploadPropertyImage -> success: $url');
       return url;
     } catch (e) {
       _log('uploadPropertyImage -> error: $e');
-      return null;
+      rethrow;
     }
   }
 
@@ -807,19 +822,34 @@ class SupabaseService {
     required String fileName,
   }) async {
     try {
-      _log('uploadServiceImage -> start (file: $fileName)');
+      _log('uploadServiceImage -> start (file: $fileName, path: $filePath)');
       final file = File(filePath);
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final path = 'service_${timestamp}_$fileName';
       
-      await client.storage.from('services-images').upload(path, file);
+      // Check if file exists
+      if (!await file.exists()) {
+        _log('uploadServiceImage -> error: file does not exist');
+        return null;
+      }
+      
+      final bytes = await file.readAsBytes();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final ext = fileName.split('.').last.toLowerCase();
+      final path = 'service_${timestamp}.$ext';
+      
+      _log('uploadServiceImage -> uploading ${bytes.length} bytes');
+      
+      await client.storage.from('services-images').uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(contentType: 'image/$ext'),
+      );
       final url = client.storage.from('services-images').getPublicUrl(path);
       
-      _log('uploadServiceImage -> success');
+      _log('uploadServiceImage -> success: $url');
       return url;
     } catch (e) {
       _log('uploadServiceImage -> error: $e');
-      return null;
+      rethrow;
     }
   }
 
@@ -828,19 +858,34 @@ class SupabaseService {
     required String fileName,
   }) async {
     try {
-      _log('uploadProfileImage -> start (file: $fileName)');
+      _log('uploadProfileImage -> start (file: $fileName, path: $filePath)');
       final file = File(filePath);
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final path = 'profile_${timestamp}_$fileName';
       
-      await client.storage.from('profile-images').upload(path, file);
+      // Check if file exists
+      if (!await file.exists()) {
+        _log('uploadProfileImage -> error: file does not exist');
+        return null;
+      }
+      
+      final bytes = await file.readAsBytes();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final ext = fileName.split('.').last.toLowerCase();
+      final path = 'profile_${timestamp}.$ext';
+      
+      _log('uploadProfileImage -> uploading ${bytes.length} bytes');
+      
+      await client.storage.from('profile-images').uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(contentType: 'image/$ext'),
+      );
       final url = client.storage.from('profile-images').getPublicUrl(path);
       
-      _log('uploadProfileImage -> success');
+      _log('uploadProfileImage -> success: $url');
       return url;
     } catch (e) {
       _log('uploadProfileImage -> error: $e');
-      return null;
+      rethrow;
     }
   }
 

@@ -347,13 +347,37 @@ class BookingsNotifier extends StateNotifier<AsyncValue<List<BookingModel>>> {
   BookingsNotifier(this.ref) : super(const AsyncValue.loading()) {
     loadBookings();
     _subscribeToChanges();
+    ref.listen<UserModel?>(currentUserProvider, (previous, next) {
+      if (previous?.id != next?.id) {
+        _log('bookings user changed -> reload');
+        loadBookings();
+      }
+    });
   }
 
   Future<void> loadBookings() async {
     try {
       _log('loadBookings -> start');
       state = const AsyncValue.loading();
-      final data = await SupabaseService.getAllBookings();
+      final user = ref.read(currentUserProvider);
+      if (user == null) {
+        state = const AsyncValue.data([]);
+        _log('loadBookings -> no user, returning empty list');
+        return;
+      }
+
+      final String role = user.role;
+      List<Map<String, dynamic>> data;
+      if (role == 'admin') {
+        data = await SupabaseService.getAllBookings();
+      } else if (role == 'owner') {
+        data = await SupabaseService.getOwnerBookings(user.id);
+      } else if (role == 'student') {
+        data = await SupabaseService.getStudentBookings(user.id);
+      } else {
+        // Providers don't have bookings; return empty list
+        data = [];
+      }
       final bookings = data.map((e) => _mapToBookingModel(e)).toList();
       state = AsyncValue.data(bookings);
       _log('loadBookings -> loaded ${bookings.length} bookings');
@@ -484,13 +508,37 @@ class OrdersNotifier extends StateNotifier<AsyncValue<List<OrderModel>>> {
   OrdersNotifier(this.ref) : super(const AsyncValue.loading()) {
     loadOrders();
     _subscribeToChanges();
+    ref.listen<UserModel?>(currentUserProvider, (previous, next) {
+      if (previous?.id != next?.id) {
+        _log('orders user changed -> reload');
+        loadOrders();
+      }
+    });
   }
 
   Future<void> loadOrders() async {
     try {
       _log('loadOrders -> start');
       state = const AsyncValue.loading();
-      final data = await SupabaseService.getAllOrders();
+      final user = ref.read(currentUserProvider);
+      if (user == null) {
+        state = const AsyncValue.data([]);
+        _log('loadOrders -> no user, returning empty list');
+        return;
+      }
+
+      final String role = user.role;
+      List<Map<String, dynamic>> data;
+      if (role == 'admin') {
+        data = await SupabaseService.getAllOrders();
+      } else if (role == 'provider') {
+        data = await SupabaseService.getProviderOrders(user.id);
+      } else if (role == 'student') {
+        data = await SupabaseService.getStudentOrders(user.id);
+      } else {
+        // Owners don't have orders; return empty list
+        data = [];
+      }
       final orders = data.map((e) => _mapToOrderModel(e)).toList();
       state = AsyncValue.data(orders);
       _log('loadOrders -> loaded ${orders.length} orders');

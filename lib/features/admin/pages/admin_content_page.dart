@@ -21,6 +21,9 @@ class _AdminContentPageState extends ConsumerState<AdminContentPage> with Single
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshAll();
+    });
   }
 
   @override
@@ -41,6 +44,13 @@ class _AdminContentPageState extends ConsumerState<AdminContentPage> with Single
         title: const Text('Content Management'),
         backgroundColor: Colors.red.shade700,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: _refreshAll,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -64,6 +74,15 @@ class _AdminContentPageState extends ConsumerState<AdminContentPage> with Single
         ],
       ),
     );
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([
+      ref.read(housesProvider.notifier).loadHouses(),
+      ref.read(servicesProvider.notifier).loadServices(),
+      ref.read(bookingsProvider.notifier).loadBookings(),
+      ref.read(ordersProvider.notifier).loadOrders(),
+    ]);
   }
 }
 

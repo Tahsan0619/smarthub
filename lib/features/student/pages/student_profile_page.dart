@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/services/supabase_service.dart';
 import '../../../core/providers/data_providers.dart';
 import '../../../core/models/order_model.dart';
 import '../../../core/models/house_model.dart';
@@ -176,19 +177,36 @@ class StudentProfilePage extends ConsumerWidget {
       );
 
       if (image != null) {
-        // For demo purposes, we'll use the file path as the image URL
-        // In a real app, you would upload to a server and get back a URL
-        final imagePath = image.path;
+        // Show loading indicator
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Uploading image...'),
+              duration: Duration(seconds: 30),
+            ),
+          );
+        }
+
+        // Upload to Supabase Storage
+        final imageUrl = await SupabaseService.uploadProfileImage(
+          filePath: image.path,
+          fileName: image.name,
+        );
+
+        if (imageUrl == null) {
+          throw Exception('Failed to upload image');
+        }
         
-        // Update the current user with the new profile image
+        // Update the current user with the new profile image URL
         final currentUser = ref.read(currentUserProvider);
         if (currentUser != null) {
           final updatedUser = currentUser.copyWith(
-            profileImage: imagePath,
+            profileImage: imageUrl,
           );
           await ref.read(currentUserProvider.notifier).updateProfile(updatedUser);
           
           if (context.mounted) {
+            ScaffoldMessenger.of(context).clearSnackBars();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Profile image updated successfully'),
@@ -200,6 +218,7 @@ class StudentProfilePage extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error uploading image: $e'),
