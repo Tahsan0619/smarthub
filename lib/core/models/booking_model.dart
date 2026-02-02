@@ -7,6 +7,9 @@ class BookingModel {
   final String status; // 'pending', 'approved', 'rejected'
   final DateTime createdAt;
   final String? notes;
+  final DateTime? checkInDate;
+  final DateTime? checkOutDate;
+  final double? totalAmount;
 
   BookingModel({
     required this.id,
@@ -17,6 +20,9 @@ class BookingModel {
     this.status = 'pending',
     required this.createdAt,
     this.notes,
+    this.checkInDate,
+    this.checkOutDate,
+    this.totalAmount,
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +35,9 @@ class BookingModel {
       status: json['status'] as String? ?? 'pending',
       createdAt: DateTime.parse(json['createdAt'] as String),
       notes: json['notes'] as String?,
+      checkInDate: json['checkInDate'] != null ? DateTime.parse(json['checkInDate'] as String) : null,
+      checkOutDate: json['checkOutDate'] != null ? DateTime.parse(json['checkOutDate'] as String) : null,
+      totalAmount: json['totalAmount'] != null ? (json['totalAmount'] as num).toDouble() : null,
     );
   }
 
@@ -42,6 +51,9 @@ class BookingModel {
       'status': status,
       'createdAt': createdAt.toIso8601String(),
       'notes': notes,
+      'checkInDate': checkInDate?.toIso8601String(),
+      'checkOutDate': checkOutDate?.toIso8601String(),
+      'totalAmount': totalAmount,
     };
   }
 
@@ -54,6 +66,9 @@ class BookingModel {
     String? status,
     DateTime? createdAt,
     String? notes,
+    DateTime? checkInDate,
+    DateTime? checkOutDate,
+    double? totalAmount,
   }) {
     return BookingModel(
       id: id ?? this.id,
@@ -64,6 +79,9 @@ class BookingModel {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       notes: notes ?? this.notes,
+      checkInDate: checkInDate ?? this.checkInDate,
+      checkOutDate: checkOutDate ?? this.checkOutDate,
+      totalAmount: totalAmount ?? this.totalAmount,
     );
   }
 }

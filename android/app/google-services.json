@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "616500859478",
+    "project_id": "sajib-mart",
+    "storage_bucket": "sajib-mart.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:616500859478:android:dffa4c0e4ac1a2ae80e1f7",
+        "android_client_info": {
+          "package_name": "com.example.sajibmart"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDgb1idylUQ2-yeSOwTx9Ril51bsworyNw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

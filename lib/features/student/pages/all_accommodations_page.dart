@@ -23,8 +23,9 @@ class _AllAccommodationsPageState extends ConsumerState<AllAccommodationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final allHouses = ref.watch(housesProvider);
-    final savedHouses = ref.watch(savedHousesProvider);
+    final allHouses = ref.watch(housesListProvider);
+    final savedHousesAsync = ref.watch(savedHousesProvider);
+    final savedHouses = savedHousesAsync.value ?? {};
     
     // Calculate dynamic price range from actual house data
     final maxRent = allHouses.isEmpty 
@@ -228,7 +229,7 @@ class _AllAccommodationsPageState extends ConsumerState<AllAccommodationsPage> {
   }
 
   void _showFilterBottomSheet(BuildContext context) {
-    final allHouses = ref.read(housesProvider);
+    final allHouses = ref.read(housesListProvider);
     final maxRent = allHouses.isEmpty 
         ? 100000.0 
         : allHouses.map((h) => h.rent).reduce((a, b) => a > b ? a : b);

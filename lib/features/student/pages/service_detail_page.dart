@@ -372,7 +372,7 @@ class _AdditionalInfoCards extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reviews = ref.watch(reviewsProvider).where((r) => r.serviceId == service.id).toList();
+    final reviews = ref.watch(reviewsListProvider).where((r) => r.serviceId == service.id).toList();
     final averageRating = reviews.isEmpty
         ? 0.0
         : reviews.fold<double>(0, (sum, r) => sum + r.rating) / reviews.length;
@@ -406,7 +406,7 @@ class _RatingHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reviews = ref.watch(reviewsProvider).where((r) => r.serviceId == service.id).toList();
+    final reviews = ref.watch(reviewsListProvider).where((r) => r.serviceId == service.id).toList();
     final reviewCount = ref.watch(serviceReviewCountProvider(service.id));
     final averageRating = reviews.isEmpty ? 0.0 : reviews.fold<double>(0, (sum, r) => sum + r.rating) / reviews.length;
 
@@ -472,7 +472,7 @@ class _RatingSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reviews = ref.watch(reviewsProvider).where((r) => r.serviceId == service.id).toList();
+    final reviews = ref.watch(reviewsListProvider).where((r) => r.serviceId == service.id).toList();
     final reviewCount = ref.watch(serviceReviewCountProvider(service.id));
     final currentUser = ref.watch(currentUserProvider);
     final userReview = reviews.cast<ReviewModel?>().firstWhere(
@@ -695,23 +695,19 @@ class _RatingSection extends ConsumerWidget {
                 if (currentUser != null) {
                   if (existingReview != null) {
                     // Update existing review
-                    final updatedReview = existingReview.copyWith(
+                    ref.read(reviewsProvider.notifier).updateReview(
+                      reviewId: existingReview.id,
                       rating: rating,
                       comment: commentController.text,
                     );
-                    ref.read(reviewsProvider.notifier).updateReview(updatedReview);
                   } else {
                     // Create new review
-                    final newReview = ReviewModel(
-                      id: 'review_${DateTime.now().millisecondsSinceEpoch}',
+                    ref.read(reviewsProvider.notifier).addReview(
+                      reviewerId: currentUser.id,
                       serviceId: service.id,
-                      studentId: currentUser.id,
-                      studentName: currentUser.name,
                       rating: rating,
                       comment: commentController.text,
-                      createdAt: DateTime.now(),
                     );
-                    ref.read(reviewsProvider.notifier).addReview(newReview);
                   }
 
                   Navigator.pop(context);

@@ -19,15 +19,13 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final allServices = ref.watch(servicesProvider);
+    final allServices = ref.watch(servicesListProvider);
     final myServices = allServices.where((s) => s.providerId == user?.id).toList();
-    final allOrders = ref.watch(serviceOrdersProvider);
+    final allOrders = ref.watch(ordersListProvider);
     
     final myOrders = allOrders.isNotEmpty 
-      ? allOrders.where((o) {
-        return o.items.any((item) => item.service.providerId == user?.id);
-      }).toList()
-      : <ServiceOrder>[];
+      ? allOrders.where((o) => o.providerId == user?.id).toList()
+      : <dynamic>[];
     
     final pendingOrders = myOrders.where((o) => o.status == 'pending').length;
     final approvedOrders = myOrders.where((o) => o.status == 'approved').length;
@@ -35,11 +33,7 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
     double totalEarnings = 0.0;
     for (final order in myOrders) {
       if (order.status == 'approved') {
-        for (final item in order.items ?? []) {
-          if (item?.service?.providerId == user?.id) {
-            totalEarnings += item?.subtotal ?? 0.0;
-          }
-        }
+        totalEarnings += (order.price * order.quantity);
       }
     }
 
@@ -320,7 +314,9 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
                 DropdownButtonFormField<ServiceCategory>(
                   value: selectedCategory,
                   decoration: const InputDecoration(labelText: 'Category'),
-                  items: ServiceCategory.values.map((cat) {
+                  items: ServiceCategory.values
+                      .where((cat) => cat != ServiceCategory.tuition)
+                      .map((cat) {
                     return DropdownMenuItem(
                       value: cat,
                       child: Text(cat.toString().split('.').last.toUpperCase()),
@@ -360,7 +356,7 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
                     isAvailable: true,
                     images: selectedImage != null ? [selectedImage!.path] : [],
                   );
-                  ref.read(servicesProvider.notifier).addService(newService);
+                  ref.read(servicesProvider.notifier).addService(newService, user.id);
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -733,7 +729,7 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
                     sessionDurationMinutes: int.tryParse(durationController.text) ?? 60,
                     availability: selectedDays,
                   );
-                  ref.read(servicesProvider.notifier).addService(newService);
+                  ref.read(servicesProvider.notifier).addService(newService, user.id);
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -760,10 +756,10 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
 
   void _showAnalytics(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final allServices = ref.watch(servicesProvider);
+    final allServices = ref.watch(servicesListProvider);
     final myServices = allServices.where((s) => s.providerId == user?.id).toList();
-    final allOrders = ref.watch(serviceOrdersProvider);
-    final myOrders = allOrders.where((o) => o.items.any((item) => item.service.providerId == user?.id)).toList();
+    final allOrders = ref.watch(ordersListProvider);
+    final myOrders = allOrders.where((o) => o.providerId == user?.id).toList();
     
     // Dynamic calculations
     int totalServices = myServices.length;
@@ -775,11 +771,11 @@ class _ProviderHomePageState extends ConsumerState<ProviderHomePage> {
     int cancelledOrders = myOrders.where((o) => o.status == 'cancelled').length;
     
     double totalRevenue = myOrders.fold(0.0, (sum, order) {
-      return sum + order.items.where((item) => item.service.providerId == user?.id).fold(0.0, (itemSum, item) => itemSum + item.subtotal);
+      return sum + (order.price * order.quantity);
     });
     
     double avgRating = myServices.isEmpty ? 0 : myServices.fold(0.0, (sum, s) => sum + s.rating) / myServices.length;
-    final allReviews = ref.watch(reviewsProvider);
+    final allReviews = ref.watch(reviewsListProvider);
     int totalReviews = allReviews.where((r) => myServices.any((s) => s.id == r.serviceId)).length;
     
     // Category breakdown
@@ -1377,7 +1373,9 @@ class _ServiceCard extends ConsumerWidget {
                 DropdownButtonFormField<ServiceCategory>(
                   value: selectedCategory,
                   decoration: const InputDecoration(labelText: 'Category'),
-                  items: ServiceCategory.values.map((cat) {
+                  items: ServiceCategory.values
+                      .where((cat) => cat != ServiceCategory.tuition)
+                      .map((cat) {
                     return DropdownMenuItem(
                       value: cat,
                       child: Text(cat.toString().split('.').last.toUpperCase()),

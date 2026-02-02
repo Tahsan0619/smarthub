@@ -10,11 +10,11 @@ class AdminAnalyticsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch all providers for real-time updates
-    final users = ref.watch(adminUsersProvider);
-    final houses = ref.watch(housesProvider);
-    final services = ref.watch(servicesProvider);
-    final bookings = ref.watch(bookingsProvider);
-    final orders = ref.watch(ordersProvider);
+    final users = ref.watch(adminUsersListProvider);
+    final houses = ref.watch(housesListProvider);
+    final services = ref.watch(servicesListProvider);
+    final bookings = ref.watch(bookingsListProvider);
+    final orders = ref.watch(ordersListProvider);
 
     // Calculate stats from watched users for real-time updates
     final stats = {
@@ -29,7 +29,7 @@ class AdminAnalyticsPage extends ConsumerWidget {
     // Calculate additional metrics
     final availableHouses = houses.where((h) => h.status == 'available').length;
     final occupiedHouses = houses.length - availableHouses;
-    final totalRevenue = orders.fold<double>(0, (sum, order) => sum + order.totalPrice);
+    final totalRevenue = orders.fold<double>(0, (sum, order) => sum + (order.price * order.quantity));
     final averageOrderValue = orders.isEmpty ? 0.0 : totalRevenue / orders.length;
 
     // Service category breakdown

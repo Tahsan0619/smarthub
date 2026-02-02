@@ -12,11 +12,11 @@ class AdminHomePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final users = ref.watch(adminUsersProvider);
+    final users = ref.watch(adminUsersListProvider);
     final pendingVerifications = ref.watch(pendingVerificationsProvider);
-    final houses = ref.watch(housesProvider);
-    final services = ref.watch(servicesProvider);
-    final bookings = ref.watch(bookingsProvider);
+    final houses = ref.watch(housesListProvider);
+    final services = ref.watch(servicesListProvider);
+    final bookings = ref.watch(bookingsListProvider);
     
     // Calculate stats from watched users for real-time updates
     final stats = {

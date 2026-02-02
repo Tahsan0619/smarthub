@@ -175,10 +175,10 @@ class ProviderProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final allServices = ref.watch(servicesProvider);
+    final allServices = ref.watch(servicesListProvider);
     final myServices = allServices.where((s) => s.providerId == user?.id).toList();
-    final allOrders = ref.watch(serviceOrdersProvider);
-    final myOrders = allOrders.where((o) => o.items.any((item) => item.service.providerId == user?.id)).toList();
+    final allOrders = ref.watch(ordersListProvider);
+    final myOrders = allOrders.where((o) => o.providerId == user?.id).toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),

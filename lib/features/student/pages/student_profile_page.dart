@@ -5,7 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/data_providers.dart';
-import '../../../core/providers/cart_provider.dart';
+import '../../../core/models/order_model.dart';
+import '../../../core/models/house_model.dart';
 import '../../../core/theme/app_colors.dart';
 
 class StudentProfilePage extends ConsumerWidget {
@@ -212,10 +213,8 @@ class StudentProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final bookings = ref.watch(bookingsProvider).where((b) => b.studentId == user?.id).toList();
-    
-    // Debug: Print bookings count
-    print('StudentProfile rebuild - Total bookings for ${user?.name}: ${bookings.length}');
+    final bookings = ref.watch(bookingsListProvider).where((b) => b.studentId == user?.id).toList();
+    final houses = ref.watch(housesListProvider);
     
     if (user == null) return const SizedBox();
 
@@ -380,7 +379,7 @@ class StudentProfilePage extends ConsumerWidget {
                       Container(width: 1, height: 40, color: Colors.grey.shade300),
                       _StatItem(
                         icon: Icons.favorite,
-                        value: '${ref.watch(savedHousesProvider).length}',
+                        value: '${ref.watch(savedHousesProvider).value?.length ?? 0}',
                         label: 'Saved',
                       ),
                       Container(width: 1, height: 40, color: Colors.grey.shade300),
@@ -394,70 +393,78 @@ class StudentProfilePage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
                 // My Applications Section
-                if (bookings.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'My Applications',
-                              style: TextStyle(
-                                fontSize: 18,
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'My Applications',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${bookings.length}',
+                              style: const TextStyle(
+                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '${bookings.length}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      if (bookings.isEmpty)
+                        Text(
+                          'No applications yet',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        )
+                      else
                         ...bookings.map((booking) {
-                          final house = ref.watch(housesProvider).firstWhere(
-                            (h) => h.id == booking.houseId,
-                            orElse: () => ref.watch(housesProvider).first,
-                          );
+                          HouseModel? house;
+                          for (final h in houses) {
+                            if (h.id == booking.houseId) {
+                              house = h;
+                              break;
+                            }
+                          }
                           return _ApplicationItem(
                             booking: booking,
                             house: house,
                           );
                         }).toList(),
-                      ],
-                    ),
+                    ],
                   ),
-                if (bookings.isNotEmpty) const SizedBox(height: 20),
+                ),
+                const SizedBox(height: 20),
                 // My Service Orders Section
                 Builder(
                   builder: (context) {
-                    final orders = ref.watch(serviceOrdersProvider).where((o) => o.studentId == user?.id).toList();
+                    final orders = ref.watch(ordersListProvider).where((o) => o.studentId == user?.id).toList();
                     if (orders.isEmpty) {
                       return const SizedBox.shrink();
                     }
@@ -762,7 +769,7 @@ class _ActionTile extends StatelessWidget {
 
 class _ApplicationItem extends StatelessWidget {
   final dynamic booking;
-  final dynamic house;
+  final HouseModel? house;
 
   const _ApplicationItem({
     required this.booking,
@@ -793,6 +800,10 @@ class _ApplicationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imagePath = (house?.images.isNotEmpty ?? false) ? house!.images.first : '';
+    final title = house?.title ?? 'Unknown property';
+    final rentText = house != null ? '৳${house!.rent.toStringAsFixed(0)}/month' : 'Price unavailable';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -805,18 +816,23 @@ class _ApplicationItem extends StatelessWidget {
           // House Image
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              house.images.first,
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 60,
-                height: 60,
-                color: Colors.grey.shade300,
-                child: const Icon(Icons.home, size: 30),
-              ),
-            ),
+            child: imagePath.isEmpty
+                ? Container(
+                    width: 60,
+                    height: 60,
+                    color: Colors.grey.shade300,
+                  )
+                : Image.network(
+                    imagePath,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey.shade300,
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           // House Info
@@ -825,7 +841,7 @@ class _ApplicationItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  house.title,
+                  title,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -835,7 +851,7 @@ class _ApplicationItem extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '৳${house.rent.toStringAsFixed(0)}/month',
+                  rentText,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey.shade600,
@@ -882,7 +898,7 @@ class _ApplicationItem extends StatelessWidget {
   }
 }
 class _ServiceOrderItem extends StatelessWidget {
-  final ServiceOrder order;
+  final OrderModel order;
 
   const _ServiceOrderItem({required this.order});
 
@@ -932,7 +948,7 @@ class _ServiceOrderItem extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Order ID: ${order.id}',
+                      'Order ID: ${order.id.substring(0, 8)}',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
@@ -942,7 +958,7 @@ class _ServiceOrderItem extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${order.items.length} item(s) • ৳${order.totalAmount.toStringAsFixed(0)}',
+                      '${order.serviceName} x${order.quantity} • ৳${(order.price * order.quantity).toStringAsFixed(0)}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,
@@ -979,43 +995,6 @@ class _ServiceOrderItem extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: order.items.length,
-              itemBuilder: (context, index) {
-                final item = order.items[index];
-                return Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        item.service.name,
-                        style: const TextStyle(fontSize: 11),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        'x${item.quantity}',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
           ),
         ],
       ),

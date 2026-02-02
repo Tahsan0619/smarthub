@@ -128,23 +128,19 @@ lib/
    flutter run
    ```
 
-## 🧪 Demo Credentials
+## 🧪 Super Admin Credentials
 
-### Student Account
-- Email: student@test.com
-- Password: 123456
+**Backend Only** - These credentials are stored securely in the backend and should NEVER be exposed in frontend code:
 
-### Owner Account
-- Email: owner@test.com
-- Password: 123456
+- **Email**: sajibvai.ituapu@gmail.com
+- **Password**: smarthub
 
-### Provider Account
-- Email: provider@test.com
-- Password: 123456
-
-### Admin Account
-- Email: admin@sajibmart.com
-- Password: admin
+**Account Registration Process:**
+1. Users create an account via signup
+2. Account is created with `is_verified = false`
+3. Admin reviews and approves the account
+4. Once approved, users can sign in
+5. Approval typically takes within 24 hours
 
 ## 📱 Screenshots
 

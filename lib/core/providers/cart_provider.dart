@@ -1,5 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/service_model.dart';
+import '../services/supabase_service.dart';
+import 'data_providers.dart';
+
+void _log(String message) {
+  // ignore: avoid_print
+  print('[CartProvider] $message');
+}
 
 class CartItem {
   final ServiceModel service;
@@ -23,59 +30,18 @@ class CartItem {
   }
 }
 
-class ServiceOrder {
-  final String id;
-  final String studentId;
-  final String studentName;
-  final String studentPhone;
-  final List<CartItem> items;
-  final double totalAmount;
-  final String status; // pending, approved, rejected
-  final DateTime createdAt;
-
-  ServiceOrder({
-    required this.id,
-    required this.studentId,
-    required this.studentName,
-    required this.studentPhone,
-    required this.items,
-    required this.totalAmount,
-    required this.status,
-    required this.createdAt,
-  });
-
-  ServiceOrder copyWith({
-    String? id,
-    String? studentId,
-    String? studentName,
-    String? studentPhone,
-    List<CartItem>? items,
-    double? totalAmount,
-    String? status,
-    DateTime? createdAt,
-  }) {
-    return ServiceOrder(
-      id: id ?? this.id,
-      studentId: studentId ?? this.studentId,
-      studentName: studentName ?? this.studentName,
-      studentPhone: studentPhone ?? this.studentPhone,
-      items: items ?? this.items,
-      totalAmount: totalAmount ?? this.totalAmount,
-      status: status ?? this.status,
-      createdAt: createdAt ?? this.createdAt,
-    );
-  }
-}
-
-// Cart Provider
+// Cart Provider - local state for UI (before checkout)
 final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
-  return CartNotifier();
+  return CartNotifier(ref);
 });
 
 class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]);
+  final Ref ref;
+  
+  CartNotifier(this.ref) : super([]);
 
   void addToCart(ServiceModel service) {
+    _log('addToCart -> ${service.name}');
     final existingIndex = state.indexWhere((item) => item.service.id == service.id);
     
     if (existingIndex >= 0) {
@@ -92,10 +58,12 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   }
 
   void removeFromCart(String serviceId) {
+    _log('removeFromCart -> $serviceId');
     state = state.where((item) => item.service.id != serviceId).toList();
   }
 
   void updateQuantity(String serviceId, int quantity) {
+    _log('updateQuantity -> $serviceId: $quantity');
     if (quantity <= 0) {
       removeFromCart(serviceId);
       return;
@@ -111,49 +79,96 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   }
 
   void clearCart() {
+    _log('clearCart');
     state = [];
   }
 
   double getTotal() {
     return state.fold(0.0, (sum, item) => sum + item.subtotal);
   }
+
+  int get itemCount => state.length;
+
+  int getTotalQuantity() {
+    return state.fold(0, (sum, item) => sum + item.quantity);
+  }
+
+  // Checkout - creates orders in Supabase
+  Future<void> checkout({
+    required String studentId,
+    required String studentName,
+    required String studentPhone,
+    required String deliveryAddress,
+    String? notes,
+  }) async {
+    if (state.isEmpty) {
+      throw Exception('Cart is empty');
+    }
+
+    _log('checkout -> start');
+    
+    try {
+      // Group cart items by provider
+      final Map<String, List<CartItem>> itemsByProvider = {};
+      for (final item in state) {
+        final providerId = item.service.providerId;
+        if (!itemsByProvider.containsKey(providerId)) {
+          itemsByProvider[providerId] = [];
+        }
+        itemsByProvider[providerId]!.add(item);
+      }
+
+      // Create an order for each provider
+      for (final entry in itemsByProvider.entries) {
+        final providerId = entry.key;
+        final items = entry.value;
+        final totalAmount = items.fold(0.0, (sum, item) => sum + item.subtotal);
+
+        _log('Creating order for provider: $providerId with ${items.length} items');
+        
+        await SupabaseService.createOrderWithItems(
+          studentId: studentId,
+          providerId: providerId,
+          totalAmount: totalAmount,
+          deliveryAddress: deliveryAddress,
+          notes: notes,
+          items: items.map((item) => {
+            'service_id': item.service.id,
+            'quantity': item.quantity,
+            'price': item.service.price,
+            'subtotal': item.subtotal,
+          }).toList(),
+        );
+      }
+
+      _log('checkout -> success');
+      
+      // Clear cart after successful checkout
+      state = [];
+      
+      // Reload orders to reflect new data
+      ref.read(ordersProvider.notifier).loadOrders();
+    } catch (e) {
+      _log('checkout -> error: $e');
+      rethrow;
+    }
+  }
 }
 
-// Service Orders Provider
-final serviceOrdersProvider = StateNotifierProvider<ServiceOrdersNotifier, List<ServiceOrder>>((ref) {
-  return ServiceOrdersNotifier();
+// Cart total provider
+final cartTotalProvider = Provider<double>((ref) {
+  final cart = ref.watch(cartProvider);
+  return cart.fold(0.0, (sum, item) => sum + item.subtotal);
 });
 
-class ServiceOrdersNotifier extends StateNotifier<List<ServiceOrder>> {
-  ServiceOrdersNotifier() : super([]);
+// Cart item count provider
+final cartItemCountProvider = Provider<int>((ref) {
+  final cart = ref.watch(cartProvider);
+  return cart.length;
+});
 
-  void addOrder(ServiceOrder order) {
-    state = [...state, order];
-  }
-
-  void updateOrder(ServiceOrder order) {
-    state = [
-      for (final o in state)
-        if (o.id == order.id) order else o,
-    ];
-  }
-
-  void deleteOrder(String orderId) {
-    state = state.where((o) => o.id != orderId).toList();
-  }
-
-  List<ServiceOrder> getStudentOrders(String studentId) {
-    return state.where((o) => o.studentId == studentId).toList();
-  }
-
-  List<ServiceOrder> getProviderOrders(String providerId, List<ServiceModel> providerServices) {
-    final serviceIds = providerServices.map((s) => s.id).toSet();
-    return state.where((order) =>
-      order.items.any((item) => serviceIds.contains(item.service.id))
-    ).toList();
-  }
-
-  List<ServiceOrder> getPendingOrders() {
-    return state.where((o) => o.status == 'pending').toList();
-  }
-}
+// Cart total quantity provider
+final cartTotalQuantityProvider = Provider<int>((ref) {
+  final cart = ref.watch(cartProvider);
+  return cart.fold(0, (sum, item) => sum + item.quantity);
+});

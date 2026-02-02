@@ -279,10 +279,11 @@ class _StudentHomePageState extends ConsumerState<StudentHomePage> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final allHouses = ref.watch(housesProvider);
+    final allHouses = ref.watch(housesListProvider);
     final houses = _filterHouses(allHouses);
-    final savedHouses = ref.watch(savedHousesProvider);
-    final allServices = ref.watch(servicesProvider);
+    final savedHousesAsync = ref.watch(savedHousesProvider);
+    final savedHouses = savedHousesAsync.value ?? {};
+    final allServices = ref.watch(servicesListProvider);
 
     return Scaffold(
       body: Container(
@@ -570,59 +571,6 @@ class _StudentHomePageState extends ConsumerState<StudentHomePage> {
                   ),
                 ),
               const SizedBox(height: 30),
-              // Available Services Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Available Services',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      '${allServices.where((s) => s.isAvailable).length} available',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Services Horizontal Scroll
-              if (allServices.isNotEmpty)
-                SizedBox(
-                  height: 160,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: allServices.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
-                    itemBuilder: (context, index) {
-                      final service = allServices[index];
-                      return SizedBox(
-                        width: 140,
-                        child: _ServiceCard(service: service),
-                      );
-                    },
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                  child: Center(
-                    child: Text(
-                      'No services available',
-                      style: TextStyle(color: Colors.grey.shade600),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

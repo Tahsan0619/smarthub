@@ -18,9 +18,9 @@ class _OwnerHomePageState extends ConsumerState<OwnerHomePage> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final allHouses = ref.watch(housesProvider);
+    final allHouses = ref.watch(housesListProvider);
     final myHouses = allHouses.where((h) => h.ownerId == user?.id).toList();
-    final allBookings = ref.watch(bookingsProvider);
+    final allBookings = ref.watch(bookingsListProvider);
     final myBookings = allBookings.where((b) =>
       myHouses.any((h) => h.id == b.houseId)
     ).toList();
@@ -504,7 +504,7 @@ class _OwnerHomePageState extends ConsumerState<OwnerHomePage> {
                     rating: 0.0,
                     reviewCount: 0,
                   );
-                  ref.read(housesProvider.notifier).addHouse(newHouse);
+                  ref.read(housesProvider.notifier).addHouse(newHouse, user.id);
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -529,9 +529,9 @@ class _OwnerHomePageState extends ConsumerState<OwnerHomePage> {
 
   void _showAnalytics(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final allHouses = ref.watch(housesProvider);
+    final allHouses = ref.watch(housesListProvider);
     final myHouses = allHouses.where((h) => h.ownerId == user?.id).toList();
-    final allBookings = ref.watch(bookingsProvider);
+    final allBookings = ref.watch(bookingsListProvider);
     final myBookings = allBookings.where((b) => myHouses.any((h) => h.id == b.houseId)).toList();
     
     // Dynamic calculations
@@ -729,7 +729,7 @@ class _PropertyCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bookings = ref.watch(bookingsProvider);
+    final bookings = ref.watch(bookingsListProvider);
     final activeTenants = bookings.where((b) => 
       b.houseId == house.id && b.status == 'approved'
     ).length;
@@ -748,23 +748,19 @@ class _PropertyCard extends ConsumerWidget {
             SizedBox(
               width: 100,
               height: 100,
-              child: isLocalFile
-                  ? Image.file(
-                      File(imagePath),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: Colors.grey.shade300,
-                        child: Icon(Icons.home, color: Colors.grey.shade600, size: 40),
-                      ),
-                    )
-                  : Image.network(
-                      imagePath,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: Colors.grey.shade300,
-                        child: Icon(Icons.home, color: Colors.grey.shade600, size: 40),
-                      ),
-                    ),
+              child: imagePath.isEmpty
+                  ? Container(color: Colors.grey.shade200)
+                  : isLocalFile
+                      ? Image.file(
+                          File(imagePath),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade200),
+                        )
+                      : Image.network(
+                          imagePath,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade200),
+                        ),
             ),
             // Property Info
             Expanded(
@@ -921,23 +917,19 @@ class _PropertyCard extends ConsumerWidget {
                   SizedBox(
                     width: double.infinity,
                     height: 200,
-                    child: isLocalFile
-                        ? Image.file(
-                            File(imagePath),
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: Colors.grey.shade300,
-                              child: const Icon(Icons.home, size: 80),
-                            ),
-                          )
-                        : Image.network(
-                            imagePath,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: Colors.grey.shade300,
-                              child: const Icon(Icons.home, size: 80),
-                            ),
-                          ),
+                    child: imagePath.isEmpty
+                        ? Container(color: Colors.grey.shade200)
+                        : isLocalFile
+                            ? Image.file(
+                                File(imagePath),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade200),
+                              )
+                            : Image.network(
+                                imagePath,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade200),
+                              ),
                   ),
                   Positioned(
                     top: 16,
@@ -1186,14 +1178,10 @@ class _PropertyCard extends ConsumerWidget {
                             Image.network(
                               currentImageUrl,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Center(
-                                child: Icon(Icons.image, size: 50, color: Colors.grey),
-                              ),
+                              errorBuilder: (_, __, ___) => Container(color: Colors.grey.shade200),
                             )
                           else
-                            const Center(
-                              child: Icon(Icons.image, size: 50, color: Colors.grey),
-                            ),
+                            Container(color: Colors.grey.shade200),
                           Positioned(
                             bottom: 0,
                             left: 0,

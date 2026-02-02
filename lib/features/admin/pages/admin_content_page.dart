@@ -31,10 +31,10 @@ class _AdminContentPageState extends ConsumerState<AdminContentPage> with Single
 
   @override
   Widget build(BuildContext context) {
-    final houses = ref.watch(housesProvider);
-    final services = ref.watch(servicesProvider);
-    final bookings = ref.watch(bookingsProvider);
-    final orders = ref.watch(ordersProvider);
+    final houses = ref.watch(housesListProvider);
+    final services = ref.watch(servicesListProvider);
+    final bookings = ref.watch(bookingsListProvider);
+    final orders = ref.watch(ordersListProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -350,7 +350,7 @@ class _BookingCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final houses = ref.watch(housesProvider);
+    final houses = ref.watch(housesListProvider);
     final house = houses.firstWhere((h) => h.id == booking.houseId, orElse: () => houses.first);
 
     return Card(

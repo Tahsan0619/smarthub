@@ -175,9 +175,9 @@ class OwnerProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
-    final allHouses = ref.watch(housesProvider);
+    final allHouses = ref.watch(housesListProvider);
     final myHouses = allHouses.where((h) => h.ownerId == user?.id).toList();
-    final allBookings = ref.watch(bookingsProvider);
+    final allBookings = ref.watch(bookingsListProvider);
     final myBookings = allBookings.where((b) => myHouses.any((h) => h.id == b.houseId)).toList();
     final activeTenants = myBookings.where((b) => b.status == 'approved').length;
 

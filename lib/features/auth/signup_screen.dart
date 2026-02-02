@@ -90,7 +90,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final success = await ref.read(currentUserProvider.notifier).signup(
+      final result = await ref.read(currentUserProvider.notifier).signup(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         phone: _phoneController.text.trim(),
@@ -101,21 +101,35 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         nid: _nidController.text.trim().isNotEmpty ? _nidController.text.trim() : null,
       );
 
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Account created successfully! Welcome to Smart Hub!'),
-            backgroundColor: _getRoleColor(),
-          ),
-        );
-        context.go('/${_selectedRole}');
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Email already exists. Please try a different email or login.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      if (!mounted) return;
+
+      switch (result) {
+        case SignupResult.success:
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Account created! Please wait for admin approval before logging in.'),
+              backgroundColor: _getRoleColor(),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          context.go('/auth/login');
+          break;
+        case SignupResult.emailExists:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('This email is already registered. Please login or use a different email.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          break;
+        case SignupResult.error:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Something went wrong. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          break;
       }
     } catch (e) {
       if (mounted) {

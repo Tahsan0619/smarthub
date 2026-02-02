@@ -133,7 +133,7 @@ class _StudentSearchPageState extends ConsumerState<StudentSearchPage> with Sing
 
   @override
   Widget build(BuildContext context) {
-    final allServices = ref.watch(servicesProvider);
+    final allServices = ref.watch(servicesListProvider);
     final cartItems = ref.watch(cartProvider);
     
     return Scaffold(

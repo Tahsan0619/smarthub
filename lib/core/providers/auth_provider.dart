@@ -1,8 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:async';
 import 'dart:convert';
 import '../models/user_model.dart';
 import '../services/storage_service.dart';
-import '../services/mock_data_service.dart';
+import '../services/supabase_service.dart';
+
+// Signup result enum
+enum SignupResult { success, emailExists, error }
+
+// Login result enum
+enum LoginResult { success, invalidCredentials, pendingApproval, error }
 
 // Current user state
 final currentUserProvider = StateNotifierProvider<CurrentUserNotifier, UserModel?>((ref) {
@@ -11,10 +19,18 @@ final currentUserProvider = StateNotifierProvider<CurrentUserNotifier, UserModel
 
 class CurrentUserNotifier extends StateNotifier<UserModel?> {
   CurrentUserNotifier() : super(null) {
-    _loadUser();
+    _loadUserFromStorage();
+    _listenAuthChanges();
   }
 
-  void _loadUser() {
+  StreamSubscription<AuthState>? _authSub;
+
+  void _log(String message) {
+    // ignore: avoid_print
+    print('[CurrentUser] $message');
+  }
+
+  void _loadUserFromStorage() {
     final userJson = StorageService.getUser();
     if (userJson != null) {
       try {
@@ -25,34 +41,134 @@ class CurrentUserNotifier extends StateNotifier<UserModel?> {
     }
   }
 
-  Future<bool> login(String email, String password) async {
+  void _listenAuthChanges() {
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen(
+      (event) async {
+        _log('authState -> ${event.event.name}');
+        if (event.event == AuthChangeEvent.signedIn ||
+            event.event == AuthChangeEvent.tokenRefreshed ||
+            event.event == AuthChangeEvent.userUpdated) {
+          final user = event.session?.user;
+          if (user != null) {
+            await _loadUserProfile(user.id);
+          }
+        }
+
+        if (event.event == AuthChangeEvent.signedOut) {
+          state = null;
+          await StorageService.clearUser();
+        }
+      },
+    );
+  }
+
+  Future<void> _loadUserProfile(String authId) async {
+    _log('loadProfile -> start (auth_id: $authId)');
+    final profile = await SupabaseService.getUserProfile(authId);
+    if (profile == null) return;
+
+    final userModel = _mapProfileToUser(profile);
+    state = userModel;
+    await StorageService.saveUser(json.encode(userModel.toJson()));
+    _log('loadProfile -> success');
+  }
+
+  UserModel _mapProfileToUser(Map<String, dynamic> profile) {
+    final createdAtRaw = profile['created_at'];
+    final createdAt = createdAtRaw is String
+        ? DateTime.tryParse(createdAtRaw) ?? DateTime.now()
+        : createdAtRaw is DateTime
+            ? createdAtRaw
+            : DateTime.now();
+
+    final ratingRaw = profile['rating'];
+    final reviewRaw = profile['review_count'];
+
+    return UserModel(
+      id: (profile['id'] ?? '').toString(),
+      name: (profile['display_name'] ?? '').toString(),
+      email: (profile['email'] ?? '').toString(),
+      phone: (profile['phone_number'] ?? '').toString(),
+      role: (profile['role'] ?? '').toString(),
+      profileImage: profile['profile_image_url'] as String?,
+      address: profile['location'] as String?,
+      university: profile['university'] as String?,
+      nid: profile['nid_number'] as String?,
+      isVerified: profile['is_verified'] == true,
+      verifiedAt: profile['verification_date'] != null
+          ? DateTime.tryParse(profile['verification_date'].toString())
+          : null,
+      verifiedBy: profile['verified_by'] as String?,
+      rating: ratingRaw is num ? ratingRaw.toDouble() : 0.0,
+      reviewCount: reviewRaw is int ? reviewRaw : 0,
+      createdAt: createdAt,
+    );
+  }
+
+  Future<LoginResult> login(String email, String password) async {
     try {
-      // Mock login - find user by email
-      final user = MockDataService.demoUsers.firstWhere(
-        (u) => u.email == email,
-        orElse: () => throw Exception('User not found'),
+      _log('login -> start (email: $email)');
+      final authResponse = await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: password,
       );
 
-      // In production, verify password here
-      state = user;
-      await StorageService.saveUser(json.encode(user.toJson()));
-      return true;
+      final authUser = authResponse.user;
+      if (authUser == null) return LoginResult.invalidCredentials;
+
+      final profile = await SupabaseService.getUserProfile(authUser.id);
+      if (profile == null) {
+        await Supabase.instance.client.auth.signOut();
+        _log('login -> no profile found');
+        return LoginResult.error;
+      }
+
+      final isVerified = profile['is_verified'] == true;
+      if (!isVerified) {
+        await Supabase.instance.client.auth.signOut();
+        _log('login -> blocked (pending approval)');
+        return LoginResult.pendingApproval;
+      }
+
+      final userModel = _mapProfileToUser(profile);
+      state = userModel;
+      await StorageService.saveUser(json.encode(userModel.toJson()));
+      _log('login -> success');
+      return LoginResult.success;
+    } on AuthException catch (e) {
+      _log('login -> auth error: ${e.message}');
+      return LoginResult.invalidCredentials;
     } catch (e) {
-      return false;
+      _log('login -> error: $e');
+      return LoginResult.error;
     }
   }
 
   Future<void> logout() async {
     state = null;
+    _log('logout -> start');
+    await Supabase.instance.client.auth.signOut();
     await StorageService.clearUser();
+    _log('logout -> success');
   }
 
   Future<void> updateProfile(UserModel updatedUser) async {
     state = updatedUser;
+    _log('updateProfile -> start');
+    await SupabaseService.updateUserProfile(updatedUser.id, {
+      'display_name': updatedUser.name,
+      'phone_number': updatedUser.phone,
+      'profile_image_url': updatedUser.profileImage,
+      'location': updatedUser.address,
+      'nid_number': updatedUser.nid,
+      'is_verified': updatedUser.isVerified,
+      'verification_date': updatedUser.verifiedAt?.toIso8601String(),
+    });
     await StorageService.saveUser(json.encode(updatedUser.toJson()));
+    _log('updateProfile -> success');
   }
 
-  Future<bool> signup({
+  Future<SignupResult> signup({
     required String name,
     required String email,
     required String phone,
@@ -63,40 +179,52 @@ class CurrentUserNotifier extends StateNotifier<UserModel?> {
     String? nid,
   }) async {
     try {
-      // Check if email already exists
-      final existingUser = MockDataService.demoUsers.where(
-        (u) => u.email.toLowerCase() == email.toLowerCase(),
+      _log('signup -> start (email: $email, role: $role)');
+      final authResponse = await Supabase.instance.client.auth.signUp(
+        email: email,
+        password: password,
       );
-      if (existingUser.isNotEmpty) {
-        return false; // Email already exists
+
+      final authUser = authResponse.user;
+      if (authUser == null) return SignupResult.error;
+
+      // Check if user already exists (email was already registered)
+      if (authResponse.user?.identities?.isEmpty ?? false) {
+        _log('signup -> email already exists');
+        return SignupResult.emailExists;
       }
 
-      // Create new user
-      final newUser = UserModel(
-        id: 'u${DateTime.now().millisecondsSinceEpoch}',
-        name: name,
+      await SupabaseService.createUserProfile(
+        authId: authUser.id,
         email: email,
-        phone: phone,
+        displayName: name,
         role: role,
-        university: university,
+        phoneNumber: phone,
         address: address,
-        nid: nid,
-        isVerified: false, // New users need admin verification
-        rating: 0.0,
-        reviewCount: 0,
-        createdAt: DateTime.now(),
+        nidNumber: nid,
+        university: university,
       );
 
-      // Add to demo users list (in production, save to backend)
-      MockDataService.demoUsers.add(newUser);
-
-      // Auto-login after signup
-      state = newUser;
-      await StorageService.saveUser(json.encode(newUser.toJson()));
-      return true;
+      // Ensure user must wait for admin approval
+      await Supabase.instance.client.auth.signOut();
+      _log('signup -> success (pending approval)');
+      return SignupResult.success;
+    } on AuthException catch (e) {
+      _log('signup -> auth error: ${e.message}');
+      if (e.message.contains('already registered') || e.message.contains('already exists')) {
+        return SignupResult.emailExists;
+      }
+      return SignupResult.error;
     } catch (e) {
-      return false;
+      _log('signup -> error: $e');
+      return SignupResult.error;
     }
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
   }
 }
 

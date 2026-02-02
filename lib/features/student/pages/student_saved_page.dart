@@ -8,8 +8,9 @@ class StudentSavedPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final savedIds = ref.watch(savedHousesProvider);
-    final allHouses = ref.watch(housesProvider);
+    final savedIdsAsync = ref.watch(savedHousesProvider);
+    final savedIds = savedIdsAsync.value ?? {};
+    final allHouses = ref.watch(housesListProvider);
     final savedHouses = allHouses.where((h) => savedIds.contains(h.id)).toList();
 
     return Scaffold(

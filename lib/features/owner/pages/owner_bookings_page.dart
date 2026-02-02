@@ -18,9 +18,9 @@ class _OwnerBookingsPageState extends ConsumerState<OwnerBookingsPage> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final allHouses = ref.watch(housesProvider);
+    final allHouses = ref.watch(housesListProvider);
     final myHouses = allHouses.where((h) => h.ownerId == user?.id).toList();
-    final allBookings = ref.watch(bookingsProvider);
+    final allBookings = ref.watch(bookingsListProvider);
     final myBookings = allBookings.where((b) =>
       myHouses.any((h) => h.id == b.houseId)
     ).toList();
@@ -115,8 +115,9 @@ class _OwnerBookingsPageState extends ConsumerState<OwnerBookingsPage> {
   }
 
   void _approveBooking(dynamic booking) {
-    ref.read(bookingsProvider.notifier).updateBooking(
-      booking.copyWith(status: 'approved'),
+    ref.read(bookingsProvider.notifier).updateBookingStatus(
+      booking.id,
+      'approved',
     );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -127,8 +128,9 @@ class _OwnerBookingsPageState extends ConsumerState<OwnerBookingsPage> {
   }
 
   void _rejectBooking(dynamic booking) {
-    ref.read(bookingsProvider.notifier).updateBooking(
-      booking.copyWith(status: 'rejected'),
+    ref.read(bookingsProvider.notifier).updateBookingStatus(
+      booking.id,
+      'rejected',
     );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

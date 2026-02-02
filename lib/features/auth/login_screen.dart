@@ -30,7 +30,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    final success = await ref.read(currentUserProvider.notifier).login(
+    final result = await ref.read(currentUserProvider.notifier).login(
       _emailController.text.trim(),
       _passwordController.text,
     );
@@ -38,15 +38,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       
-      if (success) {
-        context.go('/dashboard');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid credentials. Please check your email and password.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      switch (result) {
+        case LoginResult.success:
+          context.go('/dashboard');
+          break;
+        case LoginResult.pendingApproval:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Your account is pending admin approval. Please wait for verification.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+          break;
+        case LoginResult.invalidCredentials:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid email or password. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          break;
+        case LoginResult.error:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Something went wrong. Please try again later.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          break;
       }
     }
   }
@@ -162,7 +182,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          'Demo Accounts',
+                          'New User?',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.blue.shade700,
@@ -172,20 +192,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _buildDemoAccountRow('Student', 'alex@student.com', AppColors.studentColor),
-                    const SizedBox(height: 8),
-                    _buildDemoAccountRow('Owner', 'sarah@owner.com', AppColors.ownerColor),
-                    const SizedBox(height: 8),
-                    _buildDemoAccountRow('Provider', 'karim@provider.com', AppColors.providerColor),
-                    const SizedBox(height: 8),
-                    _buildDemoAccountRow('Admin', 'admin@sajibmart.com', Colors.red),
-                    const SizedBox(height: 8),
                     const Text(
-                      'Password: admin (for admin) | any (for others)',
+                      'Create an account by signing up. After registration, your account will be reviewed by our admin team and approved within 24 hours.',
                       style: TextStyle(
-                        fontFamily: 'monospace',
-                        fontStyle: FontStyle.italic,
-                        fontSize: 12,
+                        fontSize: 13,
+                        color: Colors.grey,
                       ),
                     ),
                   ],
@@ -204,29 +215,5 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-
-  Widget _buildDemoAccountRow(String role, String email, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            '$role: $email',
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 12,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }
+

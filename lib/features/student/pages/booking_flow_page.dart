@@ -59,9 +59,15 @@ class _BookingFlowPageState extends ConsumerState<BookingFlowPage> {
     }
   }
 
-  void _submitBooking() {
+  void _submitBooking() async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
+
+    // Calculate total amount (assuming monthly rent * duration in months, minimum 1 month)
+    final checkIn = _moveInDate ?? DateTime.now();
+    final checkOut = _moveOutDate ?? checkIn.add(const Duration(days: 180)); // Default 6 months
+    final months = ((checkOut.difference(checkIn).inDays) / 30).ceil();
+    final totalAmount = widget.house.rent * (months > 0 ? months : 1);
 
     final booking = BookingModel(
       id: 'b${DateTime.now().millisecondsSinceEpoch}',
@@ -71,72 +77,90 @@ class _BookingFlowPageState extends ConsumerState<BookingFlowPage> {
       studentPhone: user.phone,
       status: 'pending',
       createdAt: DateTime.now(),
+      checkInDate: checkIn,
+      checkOutDate: checkOut,
+      totalAmount: totalAmount,
+      notes: _specialRequests,
     );
 
-    // Add booking to state
-    ref.read(bookingsProvider.notifier).addBooking(booking);
-    
-    // Verify it was added
-    print('Booking added: ${booking.id} for ${widget.house.title}');
-    print('Total bookings: ${ref.read(bookingsProvider).length}');
-
-    // Show success dialog
+    // Show loading
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        icon: const Icon(Icons.check_circle, color: AppColors.success, size: 60),
-        title: const Text('Application Submitted!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Your booking request has been sent for approval.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'You can track the status in your profile.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Booking ID: ${booking.id}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          OutlinedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Close booking flow page
-            },
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 45),
-            ),
-            child: const Text('Back to Home'),
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Close booking flow page
-              // Switch to profile tab (index 3)
-              ref.read(selectedTabProvider.notifier).state = 3;
-            },
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 45),
-            ),
-            child: const Text('View My Applications'),
-          ),
-        ],
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
+
+    try {
+      // Add booking to Supabase
+      await ref.read(bookingsProvider.notifier).addBooking(booking, widget.house.ownerId);
+      
+      // Close loading
+      if (mounted) Navigator.pop(context);
+
+      // Show success dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            icon: const Icon(Icons.check_circle, color: AppColors.success, size: 60),
+            title: const Text('Application Submitted!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Your booking request has been sent for approval.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'You can track the status in your profile.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+              ],
+            ),
+            actions: [
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context); // Close booking flow page
+                },
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 45),
+                ),
+                child: const Text('Back to Home'),
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  Navigator.pop(context); // Close booking flow page
+                  // Switch to profile tab (index 3)
+                  ref.read(selectedTabProvider.notifier).state = 3;
+                },
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 45),
+                ),
+                child: const Text('View My Applications'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading
+      if (mounted) Navigator.pop(context);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override

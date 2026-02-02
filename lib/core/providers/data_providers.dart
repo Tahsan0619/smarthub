@@ -1,247 +1,789 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/house_model.dart';
 import '../models/service_model.dart';
 import '../models/booking_model.dart';
 import '../models/order_model.dart';
 import '../models/review_model.dart';
-import '../services/mock_data_service.dart';
+import '../models/user_model.dart';
+import '../services/supabase_service.dart';
+import 'auth_provider.dart';
 
-// Houses provider
-final housesProvider = StateNotifierProvider<HousesNotifier, List<HouseModel>>((ref) {
-  return HousesNotifier();
+void _log(String message) {
+  // ignore: avoid_print
+  print('[DataProviders] $message');
+}
+
+// =====================================================
+// HOUSES/PROPERTIES PROVIDER
+// =====================================================
+
+final housesProvider = StateNotifierProvider<HousesNotifier, AsyncValue<List<HouseModel>>>((ref) {
+  return HousesNotifier(ref);
 });
 
-class HousesNotifier extends StateNotifier<List<HouseModel>> {
-  HousesNotifier() : super(MockDataService.demoHouses);
+class HousesNotifier extends StateNotifier<AsyncValue<List<HouseModel>>> {
+  final Ref ref;
+  RealtimeChannel? _subscription;
 
-  void addHouse(HouseModel house) {
-    state = [...state, house];
-    MockDataService.demoHouses.add(house);
+  HousesNotifier(this.ref) : super(const AsyncValue.loading()) {
+    loadHouses();
+    _subscribeToChanges();
   }
 
-  void updateHouse(HouseModel house) {
-    state = [
-      for (final h in state)
-        if (h.id == house.id) house else h,
-    ];
-    final index = MockDataService.demoHouses.indexWhere((h) => h.id == house.id);
-    if (index != -1) {
-      MockDataService.demoHouses[index] = house;
+  Future<void> loadHouses() async {
+    try {
+      _log('loadHouses -> start');
+      state = const AsyncValue.loading();
+      final data = await SupabaseService.getAllProperties();
+      final houses = data.map((e) => _mapToHouseModel(e)).toList();
+      state = AsyncValue.data(houses);
+      _log('loadHouses -> loaded ${houses.length} houses');
+    } catch (e, st) {
+      _log('loadHouses -> error: $e');
+      state = AsyncValue.error(e, st);
     }
   }
 
-  void deleteHouse(String id) {
-    state = state.where((h) => h.id != id).toList();
-    MockDataService.demoHouses.removeWhere((h) => h.id == id);
+  void _subscribeToChanges() {
+    _subscription = SupabaseService.subscribeToProperties((payload) {
+      _log('houses realtime update received');
+      loadHouses();
+    });
+  }
+
+  HouseModel _mapToHouseModel(Map<String, dynamic> data) {
+    final owner = data['owner'] as Map<String, dynamic>?;
+    return HouseModel(
+      id: data['id'] ?? '',
+      ownerId: data['owner_id'] ?? '',
+      ownerName: owner?['display_name'] ?? 'Unknown',
+      ownerPhone: owner?['phone_number'] ?? '',
+      title: data['title'] ?? '',
+      description: data['description'] ?? '',
+      rent: (data['rent'] as num?)?.toDouble() ?? 0.0,
+      location: data['location'] ?? '',
+      area: data['area'] ?? '',
+      latitude: (data['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (data['longitude'] as num?)?.toDouble() ?? 0.0,
+      bedrooms: data['bedrooms'] ?? 1,
+      bathrooms: data['bathrooms'] ?? 1,
+      images: List<String>.from(data['images'] ?? []),
+      facilities: List<String>.from(data['facilities'] ?? []),
+      status: data['status'] ?? 'available',
+      rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+      reviewCount: data['review_count'] ?? 0,
+      createdAt: DateTime.tryParse(data['created_at'] ?? '') ?? DateTime.now(),
+      hasWifi: data['has_wifi'] ?? false,
+      distanceFromCampus: (data['distance_from_campus'] as num?)?.toDouble() ?? 0.0,
+      roomType: data['room_type'] ?? 'Single Room',
+    );
+  }
+
+  Future<void> addHouse(HouseModel house, String ownerId) async {
+    try {
+      _log('addHouse -> start');
+      await SupabaseService.insertProperty({
+        'owner_id': ownerId,
+        'title': house.title,
+        'description': house.description,
+        'rent': house.rent,
+        'location': house.location,
+        'area': house.area,
+        'latitude': house.latitude,
+        'longitude': house.longitude,
+        'bedrooms': house.bedrooms,
+        'bathrooms': house.bathrooms,
+        'images': house.images,
+        'facilities': house.facilities,
+        'status': house.status,
+        'has_wifi': house.hasWifi,
+        'distance_from_campus': house.distanceFromCampus,
+        'room_type': house.roomType,
+        'is_available': true,
+      });
+      _log('addHouse -> success');
+      await loadHouses();
+    } catch (e) {
+      _log('addHouse -> error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateHouse(HouseModel house) async {
+    try {
+      _log('updateHouse -> start (id: ${house.id})');
+      await SupabaseService.updateProperty(house.id, {
+        'title': house.title,
+        'description': house.description,
+        'rent': house.rent,
+        'location': house.location,
+        'area': house.area,
+        'latitude': house.latitude,
+        'longitude': house.longitude,
+        'bedrooms': house.bedrooms,
+        'bathrooms': house.bathrooms,
+        'images': house.images,
+        'facilities': house.facilities,
+        'status': house.status,
+        'has_wifi': house.hasWifi,
+        'distance_from_campus': house.distanceFromCampus,
+        'room_type': house.roomType,
+      });
+      _log('updateHouse -> success');
+      await loadHouses();
+    } catch (e) {
+      _log('updateHouse -> error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteHouse(String id) async {
+    try {
+      _log('deleteHouse -> start (id: $id)');
+      await SupabaseService.deleteProperty(id);
+      _log('deleteHouse -> success');
+      await loadHouses();
+    } catch (e) {
+      _log('deleteHouse -> error: $e');
+      rethrow;
+    }
   }
 
   List<HouseModel> getOwnerHouses(String ownerId) {
-    return state.where((h) => h.ownerId == ownerId).toList();
+    return state.value?.where((h) => h.ownerId == ownerId).toList() ?? [];
   }
 
   List<HouseModel> searchHouses(String query) {
     final lowerQuery = query.toLowerCase();
-    return state.where((h) =>
+    return state.value?.where((h) =>
       h.title.toLowerCase().contains(lowerQuery) ||
       h.location.toLowerCase().contains(lowerQuery) ||
       h.area.toLowerCase().contains(lowerQuery)
-    ).toList();
+    ).toList() ?? [];
+  }
+
+  @override
+  void dispose() {
+    if (_subscription != null) {
+      SupabaseService.unsubscribe(_subscription!);
+    }
+    super.dispose();
   }
 }
 
-// Services provider
-final servicesProvider = StateNotifierProvider<ServicesNotifier, List<ServiceModel>>((ref) {
-  return ServicesNotifier();
+// =====================================================
+// SERVICES PROVIDER
+// =====================================================
+
+final servicesProvider = StateNotifierProvider<ServicesNotifier, AsyncValue<List<ServiceModel>>>((ref) {
+  return ServicesNotifier(ref);
 });
 
-class ServicesNotifier extends StateNotifier<List<ServiceModel>> {
-  ServicesNotifier() : super(MockDataService.demoServices);
+class ServicesNotifier extends StateNotifier<AsyncValue<List<ServiceModel>>> {
+  final Ref ref;
+  RealtimeChannel? _subscription;
 
-  void addService(ServiceModel service) {
-    state = [...state, service];
-    MockDataService.demoServices.add(service);
+  ServicesNotifier(this.ref) : super(const AsyncValue.loading()) {
+    loadServices();
+    _subscribeToChanges();
   }
 
-  void updateService(ServiceModel service) {
-    state = [
-      for (final s in state)
-        if (s.id == service.id) service else s,
-    ];
-    final index = MockDataService.demoServices.indexWhere((s) => s.id == service.id);
-    if (index != -1) {
-      MockDataService.demoServices[index] = service;
+  Future<void> loadServices() async {
+    try {
+      _log('loadServices -> start');
+      state = const AsyncValue.loading();
+      final data = await SupabaseService.getAllServices();
+      final services = data.map((e) => _mapToServiceModel(e)).toList();
+      state = AsyncValue.data(services);
+      _log('loadServices -> loaded ${services.length} services');
+    } catch (e, st) {
+      _log('loadServices -> error: $e');
+      state = AsyncValue.error(e, st);
     }
   }
 
-  void deleteService(String id) {
-    state = state.where((s) => s.id != id).toList();
-    MockDataService.demoServices.removeWhere((s) => s.id == id);
+  void _subscribeToChanges() {
+    _subscription = SupabaseService.subscribeToServices((payload) {
+      _log('services realtime update received');
+      loadServices();
+    });
+  }
+
+  ServiceModel _mapToServiceModel(Map<String, dynamic> data) {
+    final provider = data['provider'] as Map<String, dynamic>?;
+    return ServiceModel(
+      id: data['id'] ?? '',
+      providerId: data['provider_id'] ?? '',
+      providerName: provider?['display_name'] ?? 'Unknown',
+      providerPhone: provider?['phone_number'] ?? '',
+      name: data['name'] ?? '',
+      description: data['description'] ?? '',
+      price: (data['price'] as num?)?.toDouble() ?? 0.0,
+      category: _parseCategory(data['category']),
+      images: List<String>.from(data['images'] ?? []),
+      rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+      reviewCount: data['review_count'] ?? 0,
+      isAvailable: data['is_available'] ?? true,
+      createdAt: DateTime.tryParse(data['created_at'] ?? '') ?? DateTime.now(),
+      deliveryTime: data['delivery_time'],
+      subject: data['subject'],
+      qualifications: data['qualifications'],
+      experienceLevel: data['experience_level'],
+      sessionDurationMinutes: data['session_duration_minutes'],
+      availability: data['availability'] != null ? List<String>.from(data['availability']) : null,
+    );
+  }
+
+  ServiceCategory _parseCategory(String? category) {
+    switch (category) {
+      case 'food':
+        return ServiceCategory.food;
+      case 'medicine':
+        return ServiceCategory.medicine;
+      case 'furniture':
+        return ServiceCategory.furniture;
+      case 'tuition':
+        return ServiceCategory.tuition;
+      default:
+        return ServiceCategory.food;
+    }
+  }
+
+  Future<void> addService(ServiceModel service, String providerId) async {
+    try {
+      _log('addService -> start');
+      await SupabaseService.insertService({
+        'provider_id': providerId,
+        'name': service.name,
+        'description': service.description,
+        'price': service.price,
+        'category': service.category.toString().split('.').last,
+        'images': service.images,
+        'delivery_time': service.deliveryTime,
+        'subject': service.subject,
+        'qualifications': service.qualifications,
+        'experience_level': service.experienceLevel,
+        'session_duration_minutes': service.sessionDurationMinutes,
+        'availability': service.availability,
+        'is_available': true,
+      });
+      _log('addService -> success');
+      await loadServices();
+    } catch (e) {
+      _log('addService -> error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateService(ServiceModel service) async {
+    try {
+      _log('updateService -> start (id: ${service.id})');
+      await SupabaseService.updateService(service.id, {
+        'name': service.name,
+        'description': service.description,
+        'price': service.price,
+        'category': service.category.toString().split('.').last,
+        'images': service.images,
+        'delivery_time': service.deliveryTime,
+        'subject': service.subject,
+        'qualifications': service.qualifications,
+        'experience_level': service.experienceLevel,
+        'session_duration_minutes': service.sessionDurationMinutes,
+        'availability': service.availability,
+        'is_available': service.isAvailable,
+      });
+      _log('updateService -> success');
+      await loadServices();
+    } catch (e) {
+      _log('updateService -> error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteService(String id) async {
+    try {
+      _log('deleteService -> start (id: $id)');
+      await SupabaseService.deleteService(id);
+      _log('deleteService -> success');
+      await loadServices();
+    } catch (e) {
+      _log('deleteService -> error: $e');
+      rethrow;
+    }
   }
 
   List<ServiceModel> getServicesByCategory(ServiceCategory category) {
-    return state.where((s) => s.category == category).toList();
+    return state.value?.where((s) => s.category == category).toList() ?? [];
   }
 
   List<ServiceModel> getProviderServices(String providerId) {
-    return state.where((s) => s.providerId == providerId).toList();
+    return state.value?.where((s) => s.providerId == providerId).toList() ?? [];
+  }
+
+  @override
+  void dispose() {
+    if (_subscription != null) {
+      SupabaseService.unsubscribe(_subscription!);
+    }
+    super.dispose();
   }
 }
 
-// Bookings provider
-final bookingsProvider = StateNotifierProvider<BookingsNotifier, List<BookingModel>>((ref) {
-  return BookingsNotifier();
+// =====================================================
+// BOOKINGS PROVIDER
+// =====================================================
+
+final bookingsProvider = StateNotifierProvider<BookingsNotifier, AsyncValue<List<BookingModel>>>((ref) {
+  return BookingsNotifier(ref);
 });
 
-class BookingsNotifier extends StateNotifier<List<BookingModel>> {
-  BookingsNotifier() : super(MockDataService.demoBookings);
+class BookingsNotifier extends StateNotifier<AsyncValue<List<BookingModel>>> {
+  final Ref ref;
+  RealtimeChannel? _subscription;
 
-  void addBooking(BookingModel booking) {
-    state = [...state, booking];
-    MockDataService.demoBookings.add(booking);
+  BookingsNotifier(this.ref) : super(const AsyncValue.loading()) {
+    loadBookings();
+    _subscribeToChanges();
   }
 
-  void updateBooking(BookingModel booking) {
-    state = [
-      for (final b in state)
-        if (b.id == booking.id) booking else b,
-    ];
-    final index = MockDataService.demoBookings.indexWhere((b) => b.id == booking.id);
-    if (index != -1) {
-      MockDataService.demoBookings[index] = booking;
+  Future<void> loadBookings() async {
+    try {
+      _log('loadBookings -> start');
+      state = const AsyncValue.loading();
+      final data = await SupabaseService.getAllBookings();
+      final bookings = data.map((e) => _mapToBookingModel(e)).toList();
+      state = AsyncValue.data(bookings);
+      _log('loadBookings -> loaded ${bookings.length} bookings');
+    } catch (e, st) {
+      _log('loadBookings -> error: $e');
+      state = AsyncValue.error(e, st);
     }
   }
 
-  void deleteBooking(String bookingId) {
-    state = state.where((b) => b.id != bookingId).toList();
-    MockDataService.demoBookings.removeWhere((b) => b.id == bookingId);
+  void _subscribeToChanges() {
+    _subscription = SupabaseService.subscribeToBookings((payload) {
+      _log('bookings realtime update received');
+      loadBookings();
+    });
+  }
+
+  BookingModel _mapToBookingModel(Map<String, dynamic> data) {
+    final student = data['student'] as Map<String, dynamic>?;
+    final property = data['property'] as Map<String, dynamic>?;
+    return BookingModel(
+      id: data['id'] ?? '',
+      houseId: data['property_id'] ?? property?['id'] ?? '',
+      studentId: data['student_id'] ?? '',
+      studentName: student?['display_name'] ?? 'Unknown',
+      studentPhone: student?['phone_number'] ?? '',
+      status: data['status'] ?? 'pending',
+      createdAt: DateTime.tryParse(data['created_at'] ?? '') ?? DateTime.now(),
+      notes: data['notes'],
+      checkInDate: data['check_in_date'] != null ? DateTime.tryParse(data['check_in_date']) : null,
+      checkOutDate: data['check_out_date'] != null ? DateTime.tryParse(data['check_out_date']) : null,
+      totalAmount: data['total_amount'] != null ? (data['total_amount'] as num).toDouble() : null,
+    );
+  }
+
+  Future<void> addBooking(BookingModel booking, String ownerId) async {
+    try {
+      _log('addBooking -> start');
+      _log('addBooking -> checkIn: ${booking.checkInDate}, checkOut: ${booking.checkOutDate}, total: ${booking.totalAmount}');
+      await SupabaseService.createBooking({
+        'property_id': booking.houseId,
+        'student_id': booking.studentId,
+        'owner_id': ownerId,
+        'check_in_date': booking.checkInDate?.toIso8601String().split('T').first ?? DateTime.now().toIso8601String().split('T').first,
+        'check_out_date': booking.checkOutDate?.toIso8601String().split('T').first ?? DateTime.now().add(const Duration(days: 180)).toIso8601String().split('T').first,
+        'total_amount': booking.totalAmount ?? 0.0,
+        'status': 'pending',
+        'notes': booking.notes,
+      });
+      _log('addBooking -> success');
+      await loadBookings();
+    } catch (e) {
+      _log('addBooking -> error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateBookingStatus(String bookingId, String status) async {
+    try {
+      _log('updateBookingStatus -> start (id: $bookingId, status: $status)');
+      await SupabaseService.updateBookingStatus(bookingId, status);
+      _log('updateBookingStatus -> success');
+      await loadBookings();
+    } catch (e) {
+      _log('updateBookingStatus -> error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteBooking(String bookingId) async {
+    try {
+      _log('deleteBooking -> start (id: $bookingId)');
+      await SupabaseService.deleteBooking(bookingId);
+      _log('deleteBooking -> success');
+      await loadBookings();
+    } catch (e) {
+      _log('deleteBooking -> error: $e');
+      rethrow;
+    }
   }
 
   List<BookingModel> getStudentBookings(String studentId) {
-    return state.where((b) => b.studentId == studentId).toList();
+    return state.value?.where((b) => b.studentId == studentId).toList() ?? [];
   }
 
   List<BookingModel> getHouseBookings(String houseId) {
-    return state.where((b) => b.houseId == houseId).toList();
+    return state.value?.where((b) => b.houseId == houseId).toList() ?? [];
   }
 
-  // Get bookings by owner
   List<BookingModel> getOwnerBookings(String ownerId, List<HouseModel> ownerHouses) {
-    final ownerHouseIds = ownerHouses.where((h) => h.ownerId == ownerId).map((h) => h.id).toList();
-    return state.where((b) => ownerHouseIds.contains(b.houseId)).toList();
+    final ownerHouseIds = ownerHouses.map((h) => h.id).toSet();
+    return state.value?.where((b) => ownerHouseIds.contains(b.houseId)).toList() ?? [];
   }
 
-  // Get pending bookings for owner
   List<BookingModel> getOwnerPendingBookings(String ownerId, List<HouseModel> ownerHouses) {
-    final ownerHouseIds = ownerHouses.where((h) => h.ownerId == ownerId).map((h) => h.id).toList();
-    return state.where((b) => 
+    final ownerHouseIds = ownerHouses.map((h) => h.id).toSet();
+    return state.value?.where((b) => 
       b.status == 'pending' && ownerHouseIds.contains(b.houseId)
-    ).toList();
+    ).toList() ?? [];
   }
 
-  // Get approved bookings for owner
-  List<BookingModel> getOwnerApprovedBookings(String ownerId, List<HouseModel> ownerHouses) {
-    final ownerHouseIds = ownerHouses.where((h) => h.ownerId == ownerId).map((h) => h.id).toList();
-    return state.where((b) => 
-      b.status == 'approved' && ownerHouseIds.contains(b.houseId)
-    ).toList();
-  }
-
-  // Count active occupants (approved bookings)
   int getActiveOccupants(String houseId) {
-    return state.where((b) => 
+    return state.value?.where((b) => 
       b.houseId == houseId && b.status == 'approved'
-    ).length;
+    ).length ?? 0;
+  }
+
+  @override
+  void dispose() {
+    if (_subscription != null) {
+      SupabaseService.unsubscribe(_subscription!);
+    }
+    super.dispose();
   }
 }
 
-// Orders provider
-final ordersProvider = StateNotifierProvider<OrdersNotifier, List<OrderModel>>((ref) {
-  return OrdersNotifier();
+// =====================================================
+// ORDERS PROVIDER
+// =====================================================
+
+final ordersProvider = StateNotifierProvider<OrdersNotifier, AsyncValue<List<OrderModel>>>((ref) {
+  return OrdersNotifier(ref);
 });
 
-class OrdersNotifier extends StateNotifier<List<OrderModel>> {
-  OrdersNotifier() : super(MockDataService.demoOrders);
+class OrdersNotifier extends StateNotifier<AsyncValue<List<OrderModel>>> {
+  final Ref ref;
+  RealtimeChannel? _subscription;
 
-  void addOrder(OrderModel order) {
-    state = [...state, order];
-    MockDataService.demoOrders.add(order);
+  OrdersNotifier(this.ref) : super(const AsyncValue.loading()) {
+    loadOrders();
+    _subscribeToChanges();
   }
 
-  void updateOrder(OrderModel order) {
-    state = [
-      for (final o in state)
-        if (o.id == order.id) order else o,
-    ];
-    final index = MockDataService.demoOrders.indexWhere((o) => o.id == order.id);
-    if (index != -1) {
-      MockDataService.demoOrders[index] = order;
+  Future<void> loadOrders() async {
+    try {
+      _log('loadOrders -> start');
+      state = const AsyncValue.loading();
+      final data = await SupabaseService.getAllOrders();
+      final orders = data.map((e) => _mapToOrderModel(e)).toList();
+      state = AsyncValue.data(orders);
+      _log('loadOrders -> loaded ${orders.length} orders');
+    } catch (e, st) {
+      _log('loadOrders -> error: $e');
+      state = AsyncValue.error(e, st);
     }
   }
 
-  void deleteOrder(String orderId) {
-    state = state.where((o) => o.id != orderId).toList();
-    MockDataService.demoOrders.removeWhere((o) => o.id == orderId);
+  void _subscribeToChanges() {
+    _subscription = SupabaseService.subscribeToOrders((payload) {
+      _log('orders realtime update received');
+      loadOrders();
+    });
+  }
+
+  OrderModel _mapToOrderModel(Map<String, dynamic> data) {
+    final student = data['student'] as Map<String, dynamic>?;
+    final items = data['items'] as List<dynamic>? ?? [];
+    
+    String serviceName = 'Order';
+    String serviceId = '';
+    String providerId = data['provider_id'] ?? '';
+    double price = 0.0;
+    int quantity = 1;
+    
+    if (items.isNotEmpty) {
+      final firstItem = items.first as Map<String, dynamic>;
+      final service = firstItem['service'] as Map<String, dynamic>?;
+      serviceName = service?['name'] ?? 'Order';
+      serviceId = firstItem['service_id'] ?? '';
+      price = (firstItem['price'] as num?)?.toDouble() ?? 0.0;
+      quantity = firstItem['quantity'] ?? 1;
+    }
+    
+    return OrderModel(
+      id: data['id'] ?? '',
+      serviceId: serviceId,
+      studentId: data['student_id'] ?? '',
+      studentName: student?['display_name'] ?? 'Unknown',
+      studentPhone: student?['phone_number'] ?? '',
+      studentAddress: data['delivery_address'] ?? '',
+      providerId: providerId,
+      serviceName: serviceName,
+      price: price,
+      quantity: quantity,
+      status: data['status'] ?? 'pending',
+      createdAt: DateTime.tryParse(data['created_at'] ?? '') ?? DateTime.now(),
+      notes: data['notes'],
+    );
+  }
+
+  Future<void> addOrder({
+    required String studentId,
+    required String studentName,
+    required String studentPhone,
+    required String studentAddress,
+    required String providerId,
+    required String serviceId,
+    required String serviceName,
+    required double price,
+    required int quantity,
+    String? notes,
+  }) async {
+    try {
+      _log('addOrder -> start');
+      await SupabaseService.createOrderWithItems(
+        studentId: studentId,
+        providerId: providerId,
+        totalAmount: price * quantity,
+        deliveryAddress: studentAddress,
+        notes: notes,
+        items: [
+          {
+            'service_id': serviceId,
+            'quantity': quantity,
+            'price': price,
+            'subtotal': price * quantity,
+          }
+        ],
+      );
+      _log('addOrder -> success');
+      await loadOrders();
+    } catch (e) {
+      _log('addOrder -> error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateOrderStatus(String orderId, String status) async {
+    try {
+      _log('updateOrderStatus -> start (id: $orderId, status: $status)');
+      await SupabaseService.updateOrderStatus(orderId, status);
+      _log('updateOrderStatus -> success');
+      await loadOrders();
+    } catch (e) {
+      _log('updateOrderStatus -> error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteOrder(String orderId) async {
+    try {
+      _log('deleteOrder -> start (id: $orderId)');
+      await SupabaseService.deleteOrder(orderId);
+      _log('deleteOrder -> success');
+      await loadOrders();
+    } catch (e) {
+      _log('deleteOrder -> error: $e');
+      rethrow;
+    }
   }
 
   List<OrderModel> getStudentOrders(String studentId) {
-    return state.where((o) => o.studentId == studentId).toList();
+    return state.value?.where((o) => o.studentId == studentId).toList() ?? [];
   }
 
   List<OrderModel> getProviderOrders(String providerId) {
-    return state.where((o) => o.providerId == providerId).toList();
+    return state.value?.where((o) => o.providerId == providerId).toList() ?? [];
+  }
+
+  @override
+  void dispose() {
+    if (_subscription != null) {
+      SupabaseService.unsubscribe(_subscription!);
+    }
+    super.dispose();
   }
 }
 
-// Saved/favorite houses
-final savedHousesProvider = StateNotifierProvider<SavedHousesNotifier, Set<String>>((ref) {
-  return SavedHousesNotifier();
+// =====================================================
+// SAVED HOUSES PROVIDER
+// =====================================================
+
+final savedHousesProvider = StateNotifierProvider<SavedHousesNotifier, AsyncValue<Set<String>>>((ref) {
+  final user = ref.watch(currentUserProvider);
+  return SavedHousesNotifier(user?.id);
 });
 
-class SavedHousesNotifier extends StateNotifier<Set<String>> {
-  SavedHousesNotifier() : super({});
+class SavedHousesNotifier extends StateNotifier<AsyncValue<Set<String>>> {
+  final String? userId;
 
-  void toggleSave(String houseId) {
-    if (state.contains(houseId)) {
-      state = {...state}..remove(houseId);
-    } else {
-      state = {...state, houseId};
+  SavedHousesNotifier(this.userId) : super(const AsyncValue.data({})) {
+    if (userId != null) {
+      loadSavedHouses();
+    }
+  }
+
+  Future<void> loadSavedHouses() async {
+    if (userId == null) return;
+    try {
+      _log('loadSavedHouses -> start');
+      state = const AsyncValue.loading();
+      final ids = await SupabaseService.getSavedHouses(userId!);
+      state = AsyncValue.data(ids.toSet());
+      _log('loadSavedHouses -> loaded ${ids.length} saved houses');
+    } catch (e, st) {
+      _log('loadSavedHouses -> error: $e');
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> toggleSave(String houseId) async {
+    if (userId == null) return;
+    try {
+      final currentSaved = state.value ?? {};
+      if (currentSaved.contains(houseId)) {
+        _log('unsaveHouse -> start');
+        await SupabaseService.unsaveHouse(userId!, houseId);
+        state = AsyncValue.data({...currentSaved}..remove(houseId));
+        _log('unsaveHouse -> success');
+      } else {
+        _log('saveHouse -> start');
+        await SupabaseService.saveHouse(userId!, houseId);
+        state = AsyncValue.data({...currentSaved, houseId});
+        _log('saveHouse -> success');
+      }
+    } catch (e) {
+      _log('toggleSave -> error: $e');
     }
   }
 
   bool isSaved(String houseId) {
-    return state.contains(houseId);
+    return state.value?.contains(houseId) ?? false;
   }
 }
-// Reviews provider
-final reviewsProvider = StateNotifierProvider<ReviewsNotifier, List<ReviewModel>>((ref) {
-  return ReviewsNotifier();
+
+// =====================================================
+// REVIEWS PROVIDER
+// =====================================================
+
+final reviewsProvider = StateNotifierProvider<ReviewsNotifier, AsyncValue<List<ReviewModel>>>((ref) {
+  return ReviewsNotifier(ref);
 });
 
-class ReviewsNotifier extends StateNotifier<List<ReviewModel>> {
-  ReviewsNotifier() : super([]);
+class ReviewsNotifier extends StateNotifier<AsyncValue<List<ReviewModel>>> {
+  final Ref ref;
 
-  void addReview(ReviewModel review) {
-    state = [...state, review];
+  ReviewsNotifier(this.ref) : super(const AsyncValue.loading()) {
+    loadReviews();
   }
 
-  void updateReview(ReviewModel review) {
-    state = [
-      for (final r in state)
-        if (r.id == review.id) review else r,
-    ];
+  Future<void> loadReviews() async {
+    try {
+      _log('loadReviews -> start');
+      state = const AsyncValue.loading();
+      final data = await SupabaseService.getAllReviews();
+      final reviews = data.map((e) => _mapToReviewModel(e)).toList();
+      state = AsyncValue.data(reviews);
+      _log('loadReviews -> loaded ${reviews.length} reviews');
+    } catch (e, st) {
+      _log('loadReviews -> error: $e');
+      state = AsyncValue.error(e, st);
+    }
   }
 
-  void deleteReview(String reviewId) {
-    state = state.where((r) => r.id != reviewId).toList();
+  ReviewModel _mapToReviewModel(Map<String, dynamic> data) {
+    final reviewer = data['reviewer'] as Map<String, dynamic>?;
+    return ReviewModel(
+      id: data['id'] ?? '',
+      studentId: data['reviewer_id'] ?? '',
+      studentName: reviewer?['display_name'] ?? 'Unknown',
+      serviceId: data['service_id'],
+      houseId: data['property_id'],
+      rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+      comment: data['comment'] ?? '',
+      createdAt: DateTime.tryParse(data['created_at'] ?? '') ?? DateTime.now(),
+    );
   }
 
-  // Get reviews for a specific service
+  Future<void> addReview({
+    required String reviewerId,
+    String? propertyId,
+    String? serviceId,
+    required double rating,
+    required String comment,
+  }) async {
+    try {
+      _log('addReview -> start');
+      await SupabaseService.createReview({
+        'reviewer_id': reviewerId,
+        'property_id': propertyId,
+        'service_id': serviceId,
+        'rating': rating,
+        'comment': comment,
+      });
+      _log('addReview -> success');
+      await loadReviews();
+    } catch (e) {
+      _log('addReview -> error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteReview(String reviewId) async {
+    try {
+      _log('deleteReview -> start');
+      await SupabaseService.deleteReview(reviewId);
+      _log('deleteReview -> success');
+      await loadReviews();
+    } catch (e) {
+      _log('deleteReview -> error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateReview({
+    required String reviewId,
+    required double rating,
+    required String comment,
+  }) async {
+    try {
+      _log('updateReview -> start');
+      await SupabaseService.updateReview(reviewId, {
+        'rating': rating,
+        'comment': comment,
+      });
+      _log('updateReview -> success');
+      await loadReviews();
+    } catch (e) {
+      _log('updateReview -> error: $e');
+      rethrow;
+    }
+  }
+
   List<ReviewModel> getServiceReviews(String serviceId) {
-    return state.where((r) => r.serviceId == serviceId).toList();
+    return state.value?.where((r) => r.serviceId == serviceId).toList() ?? [];
   }
 
-  // Get average rating for a service
+  List<ReviewModel> getHouseReviews(String houseId) {
+    return state.value?.where((r) => r.houseId == houseId).toList() ?? [];
+  }
+
   double getServiceAverageRating(String serviceId) {
     final reviews = getServiceReviews(serviceId);
     if (reviews.isEmpty) return 0.0;
@@ -249,101 +791,76 @@ class ReviewsNotifier extends StateNotifier<List<ReviewModel>> {
     return total / reviews.length;
   }
 
-  // Get reviews by a student
-  List<ReviewModel> getStudentReviews(String studentId) {
-    return state.where((r) => r.studentId == studentId).toList();
-  }
-
-  // Get student's review for a specific service
-  ReviewModel? getStudentReviewForService(String studentId, String serviceId) {
-    try {
-      return state.firstWhere(
-        (r) => r.studentId == studentId && r.serviceId == serviceId,
-      );
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // Get reviews for a house
-  List<ReviewModel> getHouseReviews(String houseId) {
-    return state.where((r) => r.houseId == houseId).toList();
-  }
-
-  // Get average rating for a house
   double getHouseAverageRating(String houseId) {
     final reviews = getHouseReviews(houseId);
     if (reviews.isEmpty) return 0.0;
     final total = reviews.fold<double>(0, (sum, r) => sum + r.rating);
     return total / reviews.length;
   }
-
-  // Get student's review for a specific house
-  ReviewModel? getStudentReviewForHouse(String studentId, String houseId) {
-    try {
-      return state.firstWhere(
-        (r) => r.studentId == studentId && r.houseId == houseId,
-      );
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // Get provider average rating
-  double getProviderAverageRating(String providerId, List<ServiceModel> allServices) {
-    final providerServices = allServices.where((s) => s.providerId == providerId).toList();
-    if (providerServices.isEmpty) return 0.0;
-    
-    double totalRating = 0.0;
-    int reviewCount = 0;
-    
-    for (final service in providerServices) {
-      final serviceReviews = getServiceReviews(service.id);
-      if (serviceReviews.isNotEmpty) {
-        final serviceAverage = getServiceAverageRating(service.id);
-        totalRating += serviceAverage * serviceReviews.length;
-        reviewCount += serviceReviews.length;
-      }
-    }
-    
-    return reviewCount == 0 ? 0.0 : totalRating / reviewCount;
-  }
 }
 
-// Provider to get student's review count dynamically
+// =====================================================
+// HELPER PROVIDERS
+// =====================================================
+
+// Houses list (unwrapped from AsyncValue for convenience)
+final housesListProvider = Provider<List<HouseModel>>((ref) {
+  return ref.watch(housesProvider).value ?? [];
+});
+
+// Services list (unwrapped from AsyncValue for convenience)
+final servicesListProvider = Provider<List<ServiceModel>>((ref) {
+  return ref.watch(servicesProvider).value ?? [];
+});
+
+// Bookings list (unwrapped from AsyncValue for convenience)
+final bookingsListProvider = Provider<List<BookingModel>>((ref) {
+  return ref.watch(bookingsProvider).value ?? [];
+});
+
+// Orders list (unwrapped from AsyncValue for convenience)
+final ordersListProvider = Provider<List<OrderModel>>((ref) {
+  return ref.watch(ordersProvider).value ?? [];
+});
+
+// Reviews list (unwrapped from AsyncValue for convenience)
+final reviewsListProvider = Provider<List<ReviewModel>>((ref) {
+  return ref.watch(reviewsProvider).value ?? [];
+});
+
+// Student review count
 final studentReviewCountProvider = Provider.family<int, String>((ref, studentId) {
-  final reviews = ref.watch(reviewsProvider);
+  final reviews = ref.watch(reviewsListProvider);
   return reviews.where((r) => r.studentId == studentId).length;
 });
 
-// Provider to get service review count dynamically
+// Service review count
 final serviceReviewCountProvider = Provider.family<int, String>((ref, serviceId) {
-  final reviews = ref.watch(reviewsProvider);
+  final reviews = ref.watch(reviewsListProvider);
   return reviews.where((r) => r.serviceId == serviceId).length;
 });
 
-// Provider to get house review count dynamically
+// House review count
 final houseReviewCountProvider = Provider.family<int, String>((ref, houseId) {
-  final reviews = ref.watch(reviewsProvider);
+  final reviews = ref.watch(reviewsListProvider);
   return reviews.where((r) => r.houseId == houseId).length;
 });
 
-// Provider to check if onboarding should be shown
+// Check if onboarding should show
 final shouldShowOnboardingProvider = FutureProvider<bool>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   final lastShownStr = prefs.getString('onboarding_last_shown');
   
   if (lastShownStr == null) {
-    return true; // First time, show onboarding
+    return true;
   }
   
   try {
     final lastShown = DateTime.parse(lastShownStr);
     final now = DateTime.now();
     final difference = now.difference(lastShown).inDays;
-    
-    return difference >= 30; // Show again if 30+ days have passed
+    return difference >= 30;
   } catch (e) {
-    return true; // If there's any error, show onboarding
+    return true;
   }
 });

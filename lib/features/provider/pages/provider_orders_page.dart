@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/data_providers.dart';
-import '../../../core/providers/cart_provider.dart';
+import '../../../core/models/order_model.dart';
 import '../../../core/theme/app_colors.dart';
 
 class ProviderOrdersPage extends ConsumerStatefulWidget {
@@ -19,13 +19,11 @@ class _ProviderOrdersPageState extends ConsumerState<ProviderOrdersPage> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    final allOrders = ref.watch(serviceOrdersProvider);
+    final allOrders = ref.watch(ordersListProvider);
     
     final myOrders = allOrders.isNotEmpty
-      ? allOrders.where((o) {
-        return o.items.any((item) => item.service.providerId == user?.id);
-      }).toList()
-      : <ServiceOrder>[];
+      ? allOrders.where((o) => o.providerId == user?.id).toList()
+      : <OrderModel>[];
 
     // Filter based on selected status
     final filteredOrders = _selectedStatus == 'all'
@@ -115,10 +113,8 @@ class _ProviderOrdersPageState extends ConsumerState<ProviderOrdersPage> {
     );
   }
 
-  void _approveOrder(dynamic order) {
-    ref.read(serviceOrdersProvider.notifier).updateOrder(
-      order.copyWith(status: 'approved'),
-    );
+  void _approveOrder(OrderModel order) {
+    ref.read(ordersProvider.notifier).updateOrderStatus(order.id, 'approved');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Order approved!'),
@@ -127,10 +123,8 @@ class _ProviderOrdersPageState extends ConsumerState<ProviderOrdersPage> {
     );
   }
 
-  void _rejectOrder(dynamic order) {
-    ref.read(serviceOrdersProvider.notifier).updateOrder(
-      order.copyWith(status: 'rejected'),
-    );
+  void _rejectOrder(OrderModel order) {
+    ref.read(ordersProvider.notifier).updateOrderStatus(order.id, 'rejected');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Order rejected'),
@@ -141,7 +135,7 @@ class _ProviderOrdersPageState extends ConsumerState<ProviderOrdersPage> {
 }
 
 class _OrderCard extends StatelessWidget {
-  final dynamic order;
+  final OrderModel order;
   final VoidCallback onApprove;
   final VoidCallback onReject;
   final String providerId;
@@ -168,10 +162,6 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final relevantItems = order.items
-        .where((item) => item.service.providerId == providerId)
-        .toList();
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
@@ -254,43 +244,41 @@ class _OrderCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            ...relevantItems.map((item) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.service.name,
-                            style: const TextStyle(fontSize: 13),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          order.serviceName,
+                          style: const TextStyle(fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          'x${order.quantity}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
                           ),
-                          Text(
-                            'x${item.quantity}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '৳${item.subtotal.toStringAsFixed(0)}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  ),
+                  Text(
+                    '৳${(order.price * order.quantity).toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                ),
-              );
-            }).toList(),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 8),
             const Divider(),
             const SizedBox(height: 8),
@@ -307,7 +295,7 @@ class _OrderCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '৳${order.totalAmount.toStringAsFixed(0)}',
+                  '৳${(order.price * order.quantity).toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
