@@ -34,7 +34,15 @@ class CurrentUserNotifier extends StateNotifier<UserModel?> {
     final userJson = StorageService.getUser();
     if (userJson != null) {
       try {
-        state = UserModel.fromJson(json.decode(userJson));
+        final user = UserModel.fromJson(json.decode(userJson));
+        // Only load from cache if user was verified
+        if (user.isVerified) {
+          state = user;
+        } else {
+          // Clear cached unverified user
+          StorageService.clearUser();
+          state = null;
+        }
       } catch (e) {
         state = null;
       }
@@ -66,6 +74,16 @@ class CurrentUserNotifier extends StateNotifier<UserModel?> {
     _log('loadProfile -> start (auth_id: $authId)');
     final profile = await SupabaseService.getUserProfile(authId);
     if (profile == null) return;
+
+    // Check if user is verified - if not, sign them out
+    final isVerified = profile['is_verified'] == true;
+    if (!isVerified) {
+      _log('loadProfile -> blocked (pending approval), signing out');
+      await Supabase.instance.client.auth.signOut();
+      state = null;
+      await StorageService.clearUser();
+      return;
+    }
 
     final userModel = _mapProfileToUser(profile);
     state = userModel;
